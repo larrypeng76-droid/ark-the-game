@@ -4,6 +4,9 @@ extends CharacterBody2D
 
 class_name Player
 
+const DeathScreenScene := preload("res://Core/UI/DeathScreen.tscn")
+const PlayerBulletScene := preload("res://Game/Player/player_bullet.tscn")
+
 @export_group("World")
 @export var world_gravity: float = 1800
 @export var world_terminal_velocity: float = 500
@@ -20,6 +23,17 @@ class_name Player
 @export var jump_force: float = -400
 @export var max_jumps: int = 1
 
+@export_group("Player Combat")
+@export var bullet_speed: float = 300.0
+@export var melee_range: float = 20.0
+
+@export_group("Player Health")
+@export var max_health: int = 10
+
+@export_group("Player Collision")
+@export var top_bounce_distance: float = 40.0
+@export var top_bounce_cooldown: float = 0.2
+
 @export_group("Player Feel")
 @export var hard_land_run_time: float = 0.8
 @export var hard_land_fall_time: float = 0.6
@@ -30,6 +44,8 @@ class_name Player
 @export var buffer_timer : float = -1.0
 
 var jumps: int = 0
+var health: int = 10
+var is_dead: bool = false
 var weapon_drawn: bool = false
 var is_crouched: bool = false
 var is_attacking: bool = false
@@ -37,6 +53,7 @@ var jump_pressed: bool = false
 
 var direction :float = 0.0
 var facing_direction: int = 1 # 1 is right, -1 is left
+var top_bounce_cooldown_timer: float = 0.0
 
 signal is_crouched_changed(new_value: bool)
 signal is_weapon_drawn_changed(new_value: bool)
@@ -45,6 +62,7 @@ signal is_weapon_drawn_changed(new_value: bool)
 @onready var animation_player: AnimationPlayer = $Visual/AnimationPlayer
 @onready var sprite: Sprite2D = $Visual/Sprite2D
 @onready var visual: Node2D = $Visual
+@onready var camera: Camera2D = $Camera2D
 
 @onready var collision_shape_standing: CollisionShape2D = $CollisionShapeStanding
 @onready var collision_shape_crouched: CollisionShape2D = $CollisionShapeCrouched
@@ -56,13 +74,22 @@ signal is_weapon_drawn_changed(new_value: bool)
 @onready var debug_weapon_drawn: Label = $CanvasLayer/MarginContainer/VBoxContainer/WeaponDrawn
 @onready var debug_jumps: Label = $CanvasLayer/MarginContainer/VBoxContainer/Jumps
 @onready var debug_is_crouched: Label = $CanvasLayer/MarginContainer/VBoxContainer/IsCrouched
+@onready var health_hearts: Label = $HUD/MarginContainer/Hearts
 
 enum collision_shapes { STANDING, CROUCHED }
 
 var active_collision_shape := collision_shapes.STANDING
+var camera_shake_tween: Tween
+var rng: RandomNumberGenerator = RandomNumberGenerator.new()
+
+const ENEMY_LAYER_MASK: int = 1 << 1
 
 func _ready():
-	$Camera2D.zoom = Vector2(1, 1)
+	add_to_group("player")
+	health = max_health
+	rng.randomize()
+	camera.zoom = Vector2(1, 1)
+	_setup_input_actions()
 	
 	animation_player.animation_finished.connect(_on_animation_finished)
 	is_crouched_changed.connect(_on_is_crouched_changed)
@@ -71,6 +98,7 @@ func _ready():
 	set_collision_shape(active_collision_shape)
 	debug_max_speed.text = "MaxSpeed: +/- %s" % str(max_speed)
 	state_machine.change_state("IdleState")
+	update_health_ui()
 	
 # Signals	
 func _on_animation_finished(animation: StringName) -> void:
@@ -87,6 +115,15 @@ func _on_weapon_drawn_changed(new_value: bool) -> void:
 
 
 func _input(_event: InputEvent):
+	if is_dead:
+		return
+	
+	if Input.is_action_just_pressed("attackShoot") and not is_attacking:
+		if _is_enemy_in_melee_range():
+			state_machine.change_state("WeaponAttackJabState")
+		else:
+			_fire_bullet()
+		return
 	
 	if weapon_drawn and not is_attacking and Input.is_action_just_pressed("attackJab"):
 		state_machine.change_state("WeaponAttackJabState")
@@ -130,6 +167,8 @@ func _input(_event: InputEvent):
 	jump_pressed = Input.is_action_just_pressed("jump")
 	
 func _process(delta: float):
+	if is_dead:
+		return
 
 	state_machine.process_update(delta)
 	debug_weapon_drawn.text = "WeaponDrawn: %s" % str(weapon_drawn)
@@ -137,6 +176,10 @@ func _process(delta: float):
 	debug_is_crouched.text = "IsCrouched: %s" % str(is_crouched)
 
 func _physics_process(delta: float):
+	if is_dead:
+		return
+	if top_bounce_cooldown_timer > 0.0:
+		top_bounce_cooldown_timer = maxf(top_bounce_cooldown_timer - delta, 0.0)
 	
 	tick_jump_timers(delta)
 	
@@ -144,7 +187,9 @@ func _physics_process(delta: float):
 		velocity.y = clamp(velocity.y + world_gravity * delta, -INF, world_terminal_velocity)
 	
 	state_machine.physics_update(delta)
+	var pre_slide_velocity_y: float = velocity.y
 	move_and_slide()
+	_check_top_enemy_bounce(pre_slide_velocity_y)
 	
 func force_stand() -> void:
 	if is_crouched and can_stand():
@@ -162,6 +207,41 @@ func play_animation(animation: String, weapon_version: bool = false):
 		animation_player.play("%s-weapon" % animation)
 	else:
 		animation_player.play(animation)
+
+func _setup_input_actions() -> void:
+	if not InputMap.has_action("attackShoot"):
+		InputMap.add_action("attackShoot")
+		var enter_event := InputEventKey.new()
+		enter_event.keycode = KEY_ENTER
+		enter_event.physical_keycode = KEY_ENTER
+		InputMap.action_add_event("attackShoot", enter_event)
+		var kp_enter_event := InputEventKey.new()
+		kp_enter_event.keycode = KEY_KP_ENTER
+		kp_enter_event.physical_keycode = KEY_KP_ENTER
+		InputMap.action_add_event("attackShoot", kp_enter_event)
+
+func _fire_bullet() -> void:
+	var bullet := PlayerBulletScene.instantiate()
+	var direction: float = facing_direction
+	if direction == 0.0:
+		direction = 1.0
+	bullet.global_position = global_position + Vector2(12 * direction, -12)
+	if bullet.has_method("setup"):
+		bullet.setup(direction, bullet_speed)
+	get_tree().current_scene.add_child(bullet)
+
+func _is_enemy_in_melee_range() -> bool:
+	var enemies: Array = get_tree().get_nodes_in_group("enemy")
+	if enemies.is_empty():
+		return false
+	var range_sq: float = melee_range * melee_range
+	for enemy in enemies:
+		if enemy is Node2D:
+			var enemy_node: Node2D = enemy
+			var dist_sq: float = enemy_node.global_position.distance_squared_to(global_position)
+			if dist_sq <= range_sq:
+				return true
+	return false
 		
 func queue_jump():
 	if jumps < max_jumps:
@@ -242,3 +322,82 @@ func set_collision_shape(shape) -> void:
 			collision_shape_crouched.set_deferred("disabled", false)
 			
 	active_collision_shape = shape
+
+func apply_knockback(from_position: Vector2, distance: float) -> void:
+	if distance <= 0.0:
+		return
+	var direction: float = 0.0
+	if global_position.x > from_position.x:
+		direction = 1.0
+	elif global_position.x < from_position.x:
+		direction = -1.0
+	else:
+		direction = 1.0
+	var motion: Vector2 = Vector2(direction * distance, 0.0)
+	move_and_collide(motion)
+
+func apply_random_knockback(distance: float) -> void:
+	if distance <= 0.0:
+		return
+	var direction: float = -1.0 if rng.randf() < 0.5 else 1.0
+	var motion: Vector2 = Vector2(direction * distance, 0.0)
+	move_and_collide(motion)
+
+func _check_top_enemy_bounce(pre_slide_velocity_y: float) -> void:
+	if top_bounce_cooldown_timer > 0.0:
+		return
+	if pre_slide_velocity_y <= 0.0:
+		return
+	var count: int = get_slide_collision_count()
+	if count == 0:
+		return
+	for i in range(count):
+		var collision: KinematicCollision2D = get_slide_collision(i)
+		var collider: Object = collision.get_collider()
+		if collider is CollisionObject2D and (collider.collision_layer & ENEMY_LAYER_MASK) != 0:
+			var normal: Vector2 = collision.get_normal()
+			if normal.y < -0.7:
+				apply_random_knockback(top_bounce_distance)
+				top_bounce_cooldown_timer = top_bounce_cooldown
+				return
+
+func shake_camera(amount: float = 4.0, duration: float = 0.12) -> void:
+	if not camera:
+		return
+	if camera_shake_tween:
+		camera_shake_tween.kill()
+	var original_offset: Vector2 = camera.offset
+	camera_shake_tween = create_tween()
+	camera_shake_tween.tween_property(camera, "offset", Vector2(0.0, -amount), duration * 0.25)
+	camera_shake_tween.tween_property(camera, "offset", Vector2(0.0, amount), duration * 0.25)
+	camera_shake_tween.tween_property(camera, "offset", Vector2(0.0, -amount * 0.5), duration * 0.25)
+	camera_shake_tween.tween_property(camera, "offset", original_offset, duration * 0.25)
+
+func take_damage(amount: int = 1) -> void:
+	if is_dead or amount <= 0:
+		return
+		
+	health = clampi(health - amount, 0, max_health)
+	update_health_ui()
+	
+	if health <= 0:
+		die()
+
+func update_health_ui() -> void:
+	if not health_hearts:
+		return
+		
+	var full := "♥".repeat(health)
+	var empty := "♡".repeat(max_health - health)
+	health_hearts.text = "%s%s" % [full, empty]
+
+func die() -> void:
+	if is_dead:
+		return
+		
+	is_dead = true
+	velocity = Vector2.ZERO
+	
+	var death_screen := DeathScreenScene.instantiate()
+	get_tree().current_scene.add_child(death_screen)
+	get_tree().paused = true

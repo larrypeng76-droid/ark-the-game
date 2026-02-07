@@ -24,6 +24,10 @@ func physics_update(_delta):
 	var direction = player.direction
 	player.velocity.x = player.apply_acceleration_in_x_in_air(direction, _delta)
 
+	if player.is_on_floor():
+		player.state_machine.change_state("LandState")
+		return
+
 	# When velocity starts going downward, switch to Fall
 	if not player.is_on_floor() and player.velocity.y > 0:
 		player.state_machine.change_state("FallState")

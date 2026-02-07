@@ -1,0 +1,19 @@
+[gd_scene load_steps=3 format=3 uid="uid://djyj01m7dbc4i"]
+
+[ext_resource type="Script" path="res://Game/Enemies/EnemyBullet.gd" id="1_4x6yr"]
+
+[sub_resource type="CircleShape2D" id="CircleShape2D_1g0lx"]
+radius = 4.0
+
+[node name="EnemyBullet" type="Area2D"]
+collision_layer = 16
+collision_mask = 5
+z_index = 2
+script = ExtResource("1_4x6yr")
+
+[node name="CollisionShape2D" type="CollisionShape2D" parent="."]
+shape = SubResource("CircleShape2D_1g0lx")
+
+[node name="Sprite" type="Polygon2D" parent="."]
+polygon = PackedVector2Array(0, -7, 7, 0, 0, 7, -7, 0)
+color = Color(1, 0.2, 0.2, 1)

@@ -6,6 +6,9 @@ class_name WeaponAttackJabState
 
 @onready var hit_box_jab: Hitbox = $"../../Visual/HitBoxes/HitBoxJab"
 
+var elapsed: float = 0.0
+var max_duration: float = 0.75
+
 func enter(_player: Player):
 	
 	super.enter(_player)
@@ -14,6 +17,8 @@ func enter(_player: Player):
 	
 	player.is_attacking = true
 	player.play_animation("weapon-attack-jab")
+	elapsed = 0.0
+	max_duration = _get_animation_duration("weapon-attack-jab", 0.7) + 0.05
 		
 func on_animation_finished(_animation: StringName):
 	if _animation == "weapon-attack-jab":
@@ -31,9 +36,22 @@ func on_animation_finished(_animation: StringName):
 			player.state_machine.change_state("IdleState")
 	
 func process_update(_delta):
-	pass
+	elapsed += _delta
+	if elapsed >= max_duration:
+		on_animation_finished("weapon-attack-jab")
 		
 
 func physics_update(_delta):
 	pass
+
+func exit():
+	player.is_attacking = false
+	if hit_box_jab:
+		hit_box_jab.set_active(false)
+
+func _get_animation_duration(name: StringName, fallback: float) -> float:
+	var anim: Animation = player.animation_player.get_animation(name)
+	if anim:
+		return anim.length
+	return fallback
 		

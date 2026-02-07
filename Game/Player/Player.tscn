@@ -942,7 +942,7 @@ _data = {
 size = Vector2(15.25, 5)
 
 [node name="Player" type="CharacterBody2D"]
-collision_mask = 4
+collision_mask = 6
 floor_snap_length = 8.0
 platform_floor_layers = 4294901760
 script = ExtResource("1_cdlqx")
@@ -976,6 +976,7 @@ position = Vector2(-7, -10)
 collision_layer = 8
 collision_mask = 2
 script = ExtResource("12_vr2vl")
+damage = 2
 
 [node name="CollisionShape2D" type="CollisionShape2D" parent="Visual/HitBoxes/HitBoxJab"]
 position = Vector2(8, -9.53674e-07)
@@ -1032,6 +1033,24 @@ metadata/_custom_type_script = "uid://c7txd6g22535f"
 [node name="WeaponAttackOverheadState" type="Node" parent="PlayerStateMachine"]
 script = ExtResource("22_rmqab")
 metadata/_custom_type_script = "uid://c7txd6g22535f"
+
+[node name="HUD" type="CanvasLayer" parent="."]
+
+[node name="MarginContainer" type="MarginContainer" parent="HUD"]
+anchors_preset = 0
+anchor_left = 0.0
+anchor_top = 0.0
+anchor_right = 0.0
+anchor_bottom = 0.0
+offset_left = 8.0
+offset_top = 8.0
+offset_right = 8.0
+offset_bottom = 8.0
+
+[node name="Hearts" type="Label" parent="HUD/MarginContainer"]
+layout_mode = 2
+theme_override_font_sizes/font_size = 16
+text = "♥♥♥♥♥♥♥♥♥♥"
 
 [node name="CanvasLayer" type="CanvasLayer" parent="."]
 

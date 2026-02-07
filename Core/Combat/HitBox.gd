@@ -7,6 +7,8 @@ class_name Hitbox
 signal activated
 signal deactivated
 
+@export var damage: int = 1
+
 @onready var collision_shapes: Array[CollisionShape2D] = []
 
 var active: bool = false
@@ -65,4 +67,4 @@ func on_area_entered(area: Area2D) -> void:
 		
 	already_hit[id] = true
 	
-	area.hit(null, self)
+	area.hit(damage, self)
