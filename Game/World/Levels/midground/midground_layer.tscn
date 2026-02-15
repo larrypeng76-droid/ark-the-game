@@ -1,0 +1,14 @@
+[gd_scene load_steps=3 format=4]
+
+[ext_resource type="Script" path="res://game/world/levels/midground/midground_layer.gd" id="1_midground_script"]
+[ext_resource type="Texture2D" path="res://game/world/assets/midground/img_1713_cutout.png" id="2_midground_tex"]
+
+[node name="MidgroundLayer" type="Node2D"]
+script = ExtResource("1_midground_script")
+z_index = -10
+viewport_fit_ratio = 0.46
+
+[node name="Visual" type="Sprite2D" parent="."]
+texture = ExtResource("2_midground_tex")
+centered = true
+texture_filter = 1

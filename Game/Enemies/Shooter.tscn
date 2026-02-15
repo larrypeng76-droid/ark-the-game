@@ -1,0 +1,46 @@
+[gd_scene load_steps=5 format=3 uid="uid://c1ejhu3r3a52y"]
+
+[ext_resource type="Script" path="res://game/enemies/shooter.gd" id="1_qx0se"]
+[ext_resource type="Script" uid="uid://c7w17j8di7n04" path="res://core/combat/hurtbox.gd" id="3_qg0x7"]
+
+[sub_resource type="RectangleShape2D" id="RectangleShape2D_0v2rf"]
+size = Vector2(24, 28)
+
+[sub_resource type="RectangleShape2D" id="RectangleShape2D_7h2pf"]
+size = Vector2(24, 28)
+
+[sub_resource type="RectangleShape2D" id="RectangleShape2D_contact"]
+size = Vector2(26, 32)
+
+[node name="Shooter" type="CharacterBody2D"]
+collision_layer = 2
+collision_mask = 5
+z_index = 1
+script = ExtResource("1_qx0se")
+
+[node name="CollisionShape2D" type="CollisionShape2D" parent="."]
+position = Vector2(0, -14)
+shape = SubResource("RectangleShape2D_0v2rf")
+
+[node name="Visual" type="Node2D" parent="."]
+scale = Vector2(0.7, 0.7)
+
+[node name="AnimatedSprite2D" type="AnimatedSprite2D" parent="Visual"]
+position = Vector2(0, -41)
+
+[node name="HurtBox" type="Area2D" parent="."]
+collision_layer = 2
+collision_mask = 8
+script = ExtResource("3_qg0x7")
+
+[node name="CollisionShape2D" type="CollisionShape2D" parent="HurtBox"]
+position = Vector2(0, -14)
+shape = SubResource("RectangleShape2D_7h2pf")
+
+[node name="ContactDamage" type="Area2D" parent="."]
+collision_layer = 16
+collision_mask = 1
+
+[node name="CollisionShape2D" type="CollisionShape2D" parent="ContactDamage"]
+position = Vector2(0, -16)
+shape = SubResource("RectangleShape2D_contact")

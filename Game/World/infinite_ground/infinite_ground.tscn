@@ -1,0 +1,19 @@
+[gd_scene load_steps=6 format=4]
+
+[ext_resource type="Script" path="res://game/world/infinite_ground/infinite_ground.gd" id="1_7jjf3"]
+[ext_resource type="Texture2D" path="res://game/world/assets/trees/small_tree.png" id="2_o7c7h"]
+[ext_resource type="Texture2D" path="res://game/world/assets/trees/big_tree.png" id="3_j1cxa"]
+[ext_resource type="Texture2D" path="res://game/world/assets/tilemaps/IMG_1700.jpg" id="4_6v14s"]
+[ext_resource type="Texture2D" path="res://game/world/assets/tilemaps/img_1705_cutout.png" id="5_1698orig"]
+
+[node name="InfiniteGround" type="Node2D"]
+script = ExtResource("1_7jjf3")
+grass_cap_texture_override = ExtResource("4_6v14s")
+grass_cap_use_strip_sampling = false
+grass_sprouts_texture = ExtResource("5_1698orig")
+grass_sprouts_texture_rotation_degrees = 0.0
+small_tree_texture = ExtResource("2_o7c7h")
+small_tree_texture_scale = Vector2(0.0500000007, 0.0500000007)
+big_tree_texture = ExtResource("3_j1cxa")
+big_tree_texture_scale = Vector2(0.0274999998, 0.0274999998)
+big_tree_texture_offset = Vector2(0, 4)

@@ -1,0 +1,17 @@
+[gd_scene load_steps=4 format=3]
+
+[ext_resource type="Script" path="res://game/features/items/apple/apple.gd" id="1_7w4x0"]
+[ext_resource type="Texture2D" path="res://game/features/items/apple/apple_icon.svg" id="2_8j4v7"]
+
+[sub_resource type="CircleShape2D" id="CircleShape2D_apple"]
+radius = 10.0
+
+[node name="Apple" type="Area2D"]
+script = ExtResource("1_7w4x0")
+
+[node name="CollisionShape2D" type="CollisionShape2D" parent="."]
+shape = SubResource("CircleShape2D_apple")
+
+[node name="Sprite2D" type="Sprite2D" parent="."]
+texture = ExtResource("2_8j4v7")
+scale = Vector2(0.15625, 0.15625)

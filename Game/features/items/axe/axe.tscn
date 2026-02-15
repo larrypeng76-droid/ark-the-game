@@ -1,0 +1,16 @@
+[gd_scene load_steps=3 format=4]
+
+[ext_resource type="Script" path="res://game/features/items/axe/axe.gd" id="1_axe_script"]
+
+[sub_resource type="RectangleShape2D" id="RectangleShape2D_pickup"]
+size = Vector2(8, 8)
+
+[node name="Axe" type="Area2D"]
+script = ExtResource("1_axe_script")
+
+[node name="CollisionShape2D" type="CollisionShape2D" parent="."]
+shape = SubResource("RectangleShape2D_pickup")
+
+[node name="Visual" type="Polygon2D" parent="."]
+color = Color(0.72, 0.72, 0.78, 1)
+polygon = PackedVector2Array(-4, -3, 2, -3, 2, -1, 4, -1, 4, 2, -1, 2, -1, 4, -4, 4)
