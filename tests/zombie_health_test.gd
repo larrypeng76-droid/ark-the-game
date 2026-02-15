@@ -5,7 +5,7 @@ func _init() -> void:
 
 func _run() -> void:
 	var errors: Array[String] = []
-	var zombie_scene: PackedScene = load("res://Game/Enemies/Zombie.tscn")
+	var zombie_scene: PackedScene = load("res://game/enemies/zombie.tscn")
 	if zombie_scene == null:
 		errors.append("Failed to load Zombie.tscn")
 		_report(errors)
@@ -14,15 +14,22 @@ func _run() -> void:
 	var zombie_node: Node = zombie_scene.instantiate()
 	get_root().add_child(zombie_node)
 	await process_frame
-	
-	var zombie: Zombie = zombie_node as Zombie
-	if zombie == null:
-		errors.append("Zombie root is not Zombie")
+
+	var zombie_script: Script = zombie_node.get_script()
+	if zombie_script == null or zombie_script.resource_path != "res://game/enemies/zombie.gd":
+		errors.append("Zombie root missing expected script res://game/enemies/zombie.gd")
 	else:
-		if zombie.max_health != 5:
-			errors.append("Zombie max_health expected 5, got %s" % str(zombie.max_health))
-		if zombie.health != 5:
-			errors.append("Zombie health expected 5, got %s" % str(zombie.health))
+		var max_health_v = zombie_node.get("max_health")
+		if typeof(max_health_v) != TYPE_INT:
+			errors.append("Zombie max_health must be int")
+		elif int(max_health_v) != 5:
+			errors.append("Zombie max_health expected 5, got %s" % str(max_health_v))
+
+		var health_v = zombie_node.get("health")
+		if typeof(health_v) != TYPE_INT:
+			errors.append("Zombie health must be int")
+		elif int(health_v) != 5:
+			errors.append("Zombie health expected 5, got %s" % str(health_v))
 	
 	_cleanup(zombie_node)
 	_report(errors)

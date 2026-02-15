@@ -5,7 +5,7 @@ func _init() -> void:
 
 func _run() -> void:
 	var errors: Array[String] = []
-	var shooter_scene: PackedScene = load("res://Game/Enemies/Shooter.tscn")
+	var shooter_scene: PackedScene = load("res://game/enemies/shooter.tscn")
 	if shooter_scene == null:
 		errors.append("Failed to load Shooter.tscn")
 		_report(errors)
@@ -28,15 +28,22 @@ func _run() -> void:
 		_cleanup(shooter)
 		_report(errors)
 		return
-	
-	var shooter_body: Shooter = shooter as Shooter
-	if shooter_body == null:
-		errors.append("Shooter root is not Shooter")
+
+	var shooter_script: Script = shooter.get_script()
+	if shooter_script == null or shooter_script.resource_path != "res://game/enemies/shooter.gd":
+		errors.append("Shooter root missing expected script res://game/enemies/shooter.gd")
 	else:
-		if shooter_body.max_health != 5:
-			errors.append("Shooter max_health expected 5, got %s" % str(shooter_body.max_health))
-		if shooter_body.health != 5:
-			errors.append("Shooter health expected 5, got %s" % str(shooter_body.health))
+		var max_health_v = shooter.get("max_health")
+		if typeof(max_health_v) != TYPE_INT:
+			errors.append("Shooter max_health must be int")
+		elif int(max_health_v) != 5:
+			errors.append("Shooter max_health expected 5, got %s" % str(max_health_v))
+
+		var health_v = shooter.get("health")
+		if typeof(health_v) != TYPE_INT:
+			errors.append("Shooter health must be int")
+		elif int(health_v) != 5:
+			errors.append("Shooter health expected 5, got %s" % str(health_v))
 	
 	var frames := anim.sprite_frames
 	if frames == null:

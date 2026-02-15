@@ -5,7 +5,7 @@ func _init() -> void:
 
 func _run() -> void:
 	var errors: Array[String] = []
-	var bullet_scene: PackedScene = load("res://Game/Player/player_bullet.tscn")
+	var bullet_scene: PackedScene = load("res://game/player/player_bullet.tscn")
 	if bullet_scene == null:
 		errors.append("Failed to load player_bullet.tscn")
 		_report(errors)

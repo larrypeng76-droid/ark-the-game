@@ -5,7 +5,7 @@ func _init() -> void:
 
 func _run() -> void:
 	var errors: Array[String] = []
-	var player_scene: PackedScene = load("res://Game/Player/Player.tscn")
+	var player_scene: PackedScene = load("res://game/player/player.tscn")
 	if player_scene == null:
 		errors.append("Failed to load Player.tscn")
 		_report(errors)
@@ -14,22 +14,31 @@ func _run() -> void:
 	var player_node: Node = player_scene.instantiate()
 	get_root().add_child(player_node)
 	await process_frame
-	
-	var player: Player = player_node as Player
-	if player == null:
-		errors.append("Player root is not Player")
+
+	var player_script: Script = player_node.get_script()
+	if player_script == null or player_script.resource_path != "res://game/player/player.gd":
+		errors.append("Player root missing expected script res://game/player/player.gd")
 		_cleanup(player_node)
 		_report(errors)
 		return
-	
-	player.state_machine.change_state("LandState")
-	player.state_machine.physics_update(0.016)
-	if player.state_machine.current_state == null or player.state_machine.current_state.name != "FallState":
+
+	var state_machine: Node = player_node.get("state_machine") as Node
+	if state_machine == null:
+		errors.append("Player missing state_machine")
+		_cleanup(player_node)
+		_report(errors)
+		return
+
+	state_machine.call("change_state", "LandState")
+	state_machine.call("physics_update", 0.016)
+	var current_state: Node = state_machine.get("current_state") as Node
+	if current_state == null or current_state.name != "FallState":
 		errors.append("LandState should fall when not on floor")
-	
-	player.state_machine.change_state("HardLandState")
-	player.state_machine.physics_update(0.016)
-	if player.state_machine.current_state == null or player.state_machine.current_state.name != "FallState":
+
+	state_machine.call("change_state", "HardLandState")
+	state_machine.call("physics_update", 0.016)
+	current_state = state_machine.get("current_state") as Node
+	if current_state == null or current_state.name != "FallState":
 		errors.append("HardLandState should fall when not on floor")
 	
 	_cleanup(player_node)
