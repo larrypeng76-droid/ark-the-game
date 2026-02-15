@@ -8,6 +8,29 @@
 - Use `snake_case` for files/folders, `PascalCase` for node names, and `class_name` only for globally reusable types.
 - One scene, one root script. Keep scene logic self-contained and communicate via signals.
 
+## Architecture / 架构（Feature-closed loop）
+
+- CN: 以 Scene 作为模块边界；每个功能在独立目录自闭环（scene + script + resources + tests）。
+  EN: Use scenes as module boundaries; each feature folder is self-contained.
+- CN: 依赖方向清晰：`game/` 可以依赖 `core/`；`core/` 不得依赖 `game/`（避免 `res://game/...` 或具体实体类型耦合）。
+  EN: Dependency direction: `Core` must not depend on `Game`.
+- CN: 跨模块通信优先 signals / Area2D（Hitbox/Hurtbox）；禁止跨模块深链 `get_node("A/B/C")` 访问内部节点做业务逻辑。
+  EN: Prefer signals/Area2D boundaries; no deep NodePath poking across modules.
+- CN: Autoload 最少但稳定；新增 Autoload 必须在文档登记职责与对外 API。
+  EN: Keep autoloads minimal and documented.
+
+- CN: 场景切换/重开/回主菜单必须集中在 `GameFlow`（或明确的 Flow 层）。`core/ui/**` 不得硬编码场景路径或直接切场景，只能通过 signals 请求。
+  EN: Scene changes must be centralized in `GameFlow` (or an explicit Flow layer). `core/ui/**` must not hardcode scene paths or change scenes; it should only emit signals.
+
+See: `docs/core/architecture_consensus.md`
+
+## Feature workflow / 功能开发流程
+
+- CN: 新功能先做最小可玩闭环（vertical slice），再抽象为可复用模块/组件。
+  EN: Build a vertical slice first, then extract shared pieces.
+- CN: 交付前运行基础 gate：`./tools/lint.sh`
+  EN: Run the basic gates before shipping: `./tools/lint.sh`.
+
 ## Scenes and resources
 - Do not invent UIDs in `.tscn` or `.tres` files.
 - For new resources, use `ext_resource` with `path` only; allow Godot to assign UIDs when opened in the editor.
@@ -40,7 +63,11 @@
 
 ## Runtime checks
 - After changes, run a headless scene load to catch script parse errors:
-  `/Applications/Godot.app/Contents/MacOS/Godot --headless --path /Users/lebupeng/Documents/games/godot-platformer --scene res://Game/Game.tscn --quit --verbose`
+  `/Applications/Godot.app/Contents/MacOS/Godot --headless --path /Users/lebupeng/Documents/games/godot-platformer --scene res://game/game.tscn --quit --verbose --log-file .godot/codex_logs/headless_scene.log`
+
+  Note: In this Codex sandbox, Godot headless must use `--log-file` (otherwise it may crash trying to write to `user://logs`).
+
+- Recommended: `./tools/lint.sh`
 
 ## Error handling
 - If the editor or CLI reports a parse error, fix that first before additional edits.
