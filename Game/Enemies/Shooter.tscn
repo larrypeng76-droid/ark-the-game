@@ -1,7 +1,7 @@
 [gd_scene load_steps=5 format=3 uid="uid://c1ejhu3r3a52y"]
 
-[ext_resource type="Script" path="res://Game/Enemies/Shooter.gd" id="1_qx0se"]
-[ext_resource type="Script" uid="uid://c7w17j8di7n04" path="res://Core/Combat/Hurtbox.gd" id="3_qg0x7"]
+[ext_resource type="Script" path="res://game/enemies/shooter.gd" id="1_qx0se"]
+[ext_resource type="Script" uid="uid://c7w17j8di7n04" path="res://core/combat/hurtbox.gd" id="3_qg0x7"]
 
 [sub_resource type="RectangleShape2D" id="RectangleShape2D_0v2rf"]
 size = Vector2(24, 28)

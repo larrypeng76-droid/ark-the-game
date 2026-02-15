@@ -1,29 +1,31 @@
-[gd_scene load_steps=42 format=3 uid="uid://8kakpu88i1mo"]
+[gd_scene load_steps=44 format=3 uid="uid://8kakpu88i1mo"]
 
-[ext_resource type="Script" uid="uid://dy2xjon041wsh" path="res://Game/Player/Player.gd" id="1_cdlqx"]
-[ext_resource type="Texture2D" uid="uid://cs0ryd8b3da5h" path="res://Resources/Player/Animations/Player-Idle.png" id="2_rmqab"]
-[ext_resource type="Texture2D" uid="uid://bpnx35fry1qfr" path="res://Resources/Player/Animations/Player-Jump.png" id="3_vr2vl"]
-[ext_resource type="Texture2D" uid="uid://cyojsyu2kk6rx" path="res://Resources/Player/Animations/Playr-Land.png" id="4_hgjse"]
-[ext_resource type="Texture2D" uid="uid://ds5gymvsao71u" path="res://Resources/Player/Animations/Player-Crouch-Idle.png" id="5_3rqyv"]
-[ext_resource type="Texture2D" uid="uid://bme5o3a68r2p2" path="res://Resources/Player/Animations/Player-Idle-Weapon.png" id="6_on0lv"]
-[ext_resource type="Texture2D" uid="uid://dvb313ruktcwl" path="res://Resources/Player/Animations/Player-Run.png" id="7_jexcd"]
-[ext_resource type="Texture2D" uid="uid://cw18hkoom5w7f" path="res://Resources/Player/Animations/Player-Run-Weapon.png" id="8_dcs4t"]
-[ext_resource type="Texture2D" uid="uid://e50e5jjgqme6" path="res://Resources/Player/Animations/Player-Crouch-Walk.png" id="9_cptj8"]
-[ext_resource type="Texture2D" uid="uid://biowshq0b4lbg" path="res://Resources/Player/Animations/Player-Weapon-Attack-Jab.png" id="10_l7hvg"]
-[ext_resource type="Texture2D" uid="uid://bja4k0qn38yn7" path="res://Resources/Player/Animations/Player-Weapon-Attack-Overhead.png" id="11_qi2kp"]
-[ext_resource type="Script" uid="uid://02gy0espctyy" path="res://Core/StateMachine/PlayerStateMachine.gd" id="12_mpnws"]
-[ext_resource type="Script" uid="uid://cl8jtdt8u6uqi" path="res://Core/Combat/HitBox.gd" id="12_vr2vl"]
-[ext_resource type="Script" uid="uid://bh5bdvk1lv6o0" path="res://Game/Player/States/FallState.gd" id="13_g1umg"]
-[ext_resource type="Script" uid="uid://bfmc5tb6g0pha" path="res://Game/Player/States/IdleState.gd" id="14_l48hl"]
-[ext_resource type="Script" uid="uid://c7phxbod0loy" path="res://Game/Player/States/JumpState.gd" id="15_4wv4q"]
-[ext_resource type="Script" uid="uid://yk6y6fvq5cxt" path="res://Game/Player/States/RunState.gd" id="16_pte0v"]
-[ext_resource type="Script" uid="uid://dtnmdps6cxjra" path="res://Game/Player/States/LandState.gd" id="17_bvw0k"]
-[ext_resource type="Script" uid="uid://dg7120rfyqfda" path="res://Game/Player/States/HardLandState.gd" id="18_qfc3d"]
-[ext_resource type="Script" uid="uid://dmyjmsjr1xqx7" path="res://Game/Player/States/IdleCrouchState.gd" id="19_eh0xq"]
-[ext_resource type="Script" uid="uid://b670w1aworaub" path="res://Game/Player/States/WalkCrouchState.gd" id="20_tc4sj"]
-[ext_resource type="Script" uid="uid://c8nrpimqpjy54" path="res://Game/Player/States/WeaponAttackJabState.gd" id="21_x03lt"]
-[ext_resource type="Script" uid="uid://dr8lxj2h4jyoa" path="res://Game/Player/States/WeaponAttackOverheadState.gd" id="22_rmqab"]
-[ext_resource type="FontFile" uid="uid://c1fsjveuiww7a" path="res://Resources/Fonts/VT323/VT323-Regular.ttf" id="24_hgjse"]
+[ext_resource type="Script" uid="uid://dy2xjon041wsh" path="res://game/player/player.gd" id="1_cdlqx"]
+[ext_resource type="Texture2D" uid="uid://cs0ryd8b3da5h" path="res://game/player/assets/animations/Player-Idle.png" id="2_rmqab"]
+[ext_resource type="Texture2D" uid="uid://bpnx35fry1qfr" path="res://game/player/assets/animations/Player-Jump.png" id="3_vr2vl"]
+[ext_resource type="Texture2D" uid="uid://cyojsyu2kk6rx" path="res://game/player/assets/animations/Playr-Land.png" id="4_hgjse"]
+[ext_resource type="Texture2D" uid="uid://ds5gymvsao71u" path="res://game/player/assets/animations/Player-Crouch-Idle.png" id="5_3rqyv"]
+[ext_resource type="Texture2D" uid="uid://bme5o3a68r2p2" path="res://game/player/assets/animations/Player-Idle-Weapon.png" id="6_on0lv"]
+[ext_resource type="Texture2D" uid="uid://dvb313ruktcwl" path="res://game/player/assets/animations/Player-Run.png" id="7_jexcd"]
+[ext_resource type="Texture2D" uid="uid://cw18hkoom5w7f" path="res://game/player/assets/animations/Player-Run-Weapon.png" id="8_dcs4t"]
+[ext_resource type="Texture2D" uid="uid://e50e5jjgqme6" path="res://game/player/assets/animations/Player-Crouch-Walk.png" id="9_cptj8"]
+[ext_resource type="Texture2D" uid="uid://biowshq0b4lbg" path="res://game/player/assets/animations/Player-Weapon-Attack-Jab.png" id="10_l7hvg"]
+[ext_resource type="Texture2D" uid="uid://bja4k0qn38yn7" path="res://game/player/assets/animations/Player-Weapon-Attack-Overhead.png" id="11_qi2kp"]
+[ext_resource type="Script" uid="uid://02gy0espctyy" path="res://game/player/player_state_machine.gd" id="12_mpnws"]
+[ext_resource type="Script" uid="uid://cl8jtdt8u6uqi" path="res://core/combat/hitbox.gd" id="12_vr2vl"]
+[ext_resource type="Script" uid="uid://bh5bdvk1lv6o0" path="res://game/player/states/fall_state.gd" id="13_g1umg"]
+[ext_resource type="Script" uid="uid://bfmc5tb6g0pha" path="res://game/player/states/idle_state.gd" id="14_l48hl"]
+[ext_resource type="Script" uid="uid://c7phxbod0loy" path="res://game/player/states/jump_state.gd" id="15_4wv4q"]
+[ext_resource type="Script" uid="uid://yk6y6fvq5cxt" path="res://game/player/states/run_state.gd" id="16_pte0v"]
+[ext_resource type="Script" uid="uid://dtnmdps6cxjra" path="res://game/player/states/land_state.gd" id="17_bvw0k"]
+[ext_resource type="Script" uid="uid://dg7120rfyqfda" path="res://game/player/states/hard_land_state.gd" id="18_qfc3d"]
+[ext_resource type="Script" uid="uid://dmyjmsjr1xqx7" path="res://game/player/states/idle_crouch_state.gd" id="19_eh0xq"]
+[ext_resource type="Script" uid="uid://b670w1aworaub" path="res://game/player/states/walk_crouch_state.gd" id="20_tc4sj"]
+[ext_resource type="Script" uid="uid://c8nrpimqpjy54" path="res://game/player/states/weapon_attack_jab_state.gd" id="21_x03lt"]
+[ext_resource type="Script" uid="uid://dr8lxj2h4jyoa" path="res://game/player/states/weapon_attack_overhead_state.gd" id="22_rmqab"]
+[ext_resource type="Script" path="res://core/combat/hurtbox.gd" id="23_hurtbox"]
+[ext_resource type="FontFile" uid="uid://c1fsjveuiww7a" path="res://core/assets/fonts/vt323/VT323-Regular.ttf" id="24_hgjse"]
+[ext_resource type="Script" path="res://game/player/aim_crosshair.gd" id="25_aim_crosshair"]
 
 [sub_resource type="CapsuleShape2D" id="CapsuleShape2D_o3h8g"]
 radius = 6.0
@@ -956,6 +958,20 @@ position = Vector2(0, -8)
 shape = SubResource("CapsuleShape2D_1e7my")
 disabled = true
 
+[node name="HurtBox" type="Area2D" parent="."]
+collision_layer = 1
+collision_mask = 16
+script = ExtResource("23_hurtbox")
+
+[node name="CollisionShapeStanding" type="CollisionShape2D" parent="HurtBox"]
+position = Vector2(0, -14)
+shape = SubResource("CapsuleShape2D_o3h8g")
+
+[node name="CollisionShapeCrouched" type="CollisionShape2D" parent="HurtBox"]
+position = Vector2(0, -8)
+shape = SubResource("CapsuleShape2D_1e7my")
+disabled = true
+
 [node name="Visual" type="Node2D" parent="."]
 
 [node name="Sprite2D" type="Sprite2D" parent="Visual"]
@@ -1033,6 +1049,13 @@ metadata/_custom_type_script = "uid://c7txd6g22535f"
 [node name="WeaponAttackOverheadState" type="Node" parent="PlayerStateMachine"]
 script = ExtResource("22_rmqab")
 metadata/_custom_type_script = "uid://c7txd6g22535f"
+
+[node name="CrosshairLayer" type="CanvasLayer" parent="."]
+layer = 2
+
+[node name="AimCrosshair" type="Node2D" parent="CrosshairLayer"]
+scale = Vector2(0.25, 0.25)
+script = ExtResource("25_aim_crosshair")
 
 [node name="HUD" type="CanvasLayer" parent="."]
 

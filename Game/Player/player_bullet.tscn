@@ -1,6 +1,6 @@
 [gd_scene load_steps=3 format=3]
 
-[ext_resource type="Script" path="res://Game/Player/player_bullet.gd" id="1_kb9m2"]
+[ext_resource type="Script" path="res://game/player/player_bullet.gd" id="1_kb9m2"]
 
 [sub_resource type="CircleShape2D" id="CircleShape2D_kb9m2"]
 radius = 3.0

@@ -1,0 +1,65 @@
+[gd_scene load_steps=4 format=3 uid="uid://wja07uofrfdj"]
+
+[ext_resource type="Script" uid="uid://clla7b7ux26rk" path="res://game/main_menu.gd" id="1_ntbn7"]
+[ext_resource type="FontFile" uid="uid://c1fsjveuiww7a" path="res://core/assets/fonts/vt323/VT323-Regular.ttf" id="2_etmjx"]
+
+[sub_resource type="StyleBoxFlat" id="StyleBoxFlat_g05qo"]
+bg_color = Color(0.954703, 0.397991, 0.309539, 1)
+
+[node name="MainMenu" type="Control"]
+layout_mode = 3
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+script = ExtResource("1_ntbn7")
+
+[node name="PanelContainer" type="PanelContainer" parent="."]
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+theme_override_styles/panel = SubResource("StyleBoxFlat_g05qo")
+
+[node name="MarginContainer" type="MarginContainer" parent="PanelContainer"]
+layout_mode = 2
+theme_override_constants/margin_left = 25
+theme_override_constants/margin_top = 25
+theme_override_constants/margin_right = 25
+theme_override_constants/margin_bottom = 25
+
+[node name="VBoxContainer" type="VBoxContainer" parent="PanelContainer/MarginContainer"]
+layout_mode = 2
+
+[node name="Title" type="Label" parent="PanelContainer/MarginContainer/VBoxContainer"]
+layout_mode = 2
+theme_override_colors/font_color = Color(0, 0.0901961, 0.858824, 1)
+theme_override_colors/font_shadow_color = Color(0, 0, 0, 1)
+theme_override_colors/font_outline_color = Color(0, 0, 0, 1)
+theme_override_fonts/font = ExtResource("2_etmjx")
+theme_override_font_sizes/font_size = 30
+text = "Godot Platformer Starter"
+horizontal_alignment = 1
+
+[node name="Author" type="Label" parent="PanelContainer/MarginContainer/VBoxContainer"]
+layout_mode = 2
+theme_override_fonts/font = ExtResource("2_etmjx")
+theme_override_font_sizes/font_size = 22
+text = "By Dean Blackborough"
+horizontal_alignment = 1
+
+[node name="MarginContainer" type="MarginContainer" parent="PanelContainer/MarginContainer/VBoxContainer"]
+layout_mode = 2
+theme_override_constants/margin_top = 20
+
+[node name="PlayButton" type="Button" parent="PanelContainer/MarginContainer/VBoxContainer/MarginContainer"]
+layout_mode = 2
+size_flags_horizontal = 4
+theme_override_fonts/font = ExtResource("2_etmjx")
+theme_override_font_sizes/font_size = 14
+text = "Play Game"
+
+[connection signal="pressed" from="PanelContainer/MarginContainer/VBoxContainer/MarginContainer/PlayButton" to="." method="_on_play_pressed"]

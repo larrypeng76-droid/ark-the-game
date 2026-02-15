@@ -1,8 +1,6 @@
-# res://Game/Enemies/Zombie.gd
+# res://game/enemies/zombie.gd
 
 extends CharacterBody2D
-
-class_name Zombie
 
 @onready var animation_player: AnimationPlayer = $AnimationPlayer
 @export var max_health: int = 5
