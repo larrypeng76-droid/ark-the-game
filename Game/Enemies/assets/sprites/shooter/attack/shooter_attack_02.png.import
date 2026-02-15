@@ -3,7 +3,7 @@
 importer="texture"
 type="CompressedTexture2D"
 uid="uid://dnht3o17v4pf1"
-path="res://.godot/imported/shooter_attack_02.png-404d57e36c343713132316cf7b807a51.ctex"
+path="res://.godot/imported/shooter_attack_02.png-7b546c4a493f1e264662b9be4e764582.ctex"
 metadata={
 "vram_texture": false
 }
@@ -11,7 +11,7 @@ metadata={
 [deps]
 
 source_file="res://game/enemies/assets/sprites/shooter/attack/shooter_attack_02.png"
-dest_files=["res://.godot/imported/shooter_attack_02.png-404d57e36c343713132316cf7b807a51.ctex"]
+dest_files=["res://.godot/imported/shooter_attack_02.png-7b546c4a493f1e264662b9be4e764582.ctex"]
 
 [params]
 

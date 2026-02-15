@@ -1,7 +1,7 @@
 [gd_scene load_steps=4 format=3 uid="uid://dsyy6phfhpap5"]
 
 [ext_resource type="PackedScene" uid="uid://8kakpu88i1mo" path="res://game/player/player.tscn" id="2_cpr0p"]
-[ext_resource type="PackedScene" uid="uid://cadqgdm5pkvia" path="res://game/world/levels/level.tscn" id="2_gl6un"]
+[ext_resource type="PackedScene" uid="uid://cadqgdm5pkvia" path="res://game/world/levels/Level.tscn" id="2_gl6un"]
 [ext_resource type="PackedScene" path="res://game/features/inventory/inventory_ui.tscn" id="3_inv"]
 
 [node name="Game" type="Node2D"]

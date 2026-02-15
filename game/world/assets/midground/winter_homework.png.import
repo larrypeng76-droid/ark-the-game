@@ -2,16 +2,16 @@
 
 importer="texture"
 type="CompressedTexture2D"
-uid="uid://ba0no714miqoo"
-path="res://.godot/imported/shooter_attack_04.png-09024bc7da8abc84207e0336d0952ae8.ctex"
+uid="uid://c85lxft7bl5pg"
+path="res://.godot/imported/winter_homework.png-808168641228e4155c6b01e8d891ef5e.ctex"
 metadata={
 "vram_texture": false
 }
 
 [deps]
 
-source_file="res://game/enemies/assets/sprites/shooter/attack/shooter_attack_04.png"
-dest_files=["res://.godot/imported/shooter_attack_04.png-09024bc7da8abc84207e0336d0952ae8.ctex"]
+source_file="res://game/world/assets/midground/winter_homework.png"
+dest_files=["res://.godot/imported/winter_homework.png-808168641228e4155c6b01e8d891ef5e.ctex"]
 
 [params]
 

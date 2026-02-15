@@ -3,7 +3,7 @@
 importer="texture"
 type="CompressedTexture2D"
 uid="uid://mhwa5yat7yca"
-path="res://.godot/imported/shooter_blast_charge_01.png-95550c999ec67110733ff1fa3325a422.ctex"
+path="res://.godot/imported/shooter_blast_charge_01.png-09d17483b289fbcd8bc7394d6e113c5c.ctex"
 metadata={
 "vram_texture": false
 }
@@ -11,7 +11,7 @@ metadata={
 [deps]
 
 source_file="res://game/enemies/assets/sprites/shooter/blast_charge/shooter_blast_charge_01.png"
-dest_files=["res://.godot/imported/shooter_blast_charge_01.png-95550c999ec67110733ff1fa3325a422.ctex"]
+dest_files=["res://.godot/imported/shooter_blast_charge_01.png-09d17483b289fbcd8bc7394d6e113c5c.ctex"]
 
 [params]
 

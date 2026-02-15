@@ -3,7 +3,7 @@
 importer="texture"
 type="CompressedTexture2D"
 uid="uid://cu2a0mhkdjy6m"
-path="res://.godot/imported/shooter_idle_04.png-1a2470c45aa6309dcc1da3beca3a0e54.ctex"
+path="res://.godot/imported/shooter_idle_04.png-592853a7043428bf90c133fa1a208888.ctex"
 metadata={
 "vram_texture": false
 }
@@ -11,7 +11,7 @@ metadata={
 [deps]
 
 source_file="res://game/enemies/assets/sprites/shooter/idle/shooter_idle_04.png"
-dest_files=["res://.godot/imported/shooter_idle_04.png-1a2470c45aa6309dcc1da3beca3a0e54.ctex"]
+dest_files=["res://.godot/imported/shooter_idle_04.png-592853a7043428bf90c133fa1a208888.ctex"]
 
 [params]
 

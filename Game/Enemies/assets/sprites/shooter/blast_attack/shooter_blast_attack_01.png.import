@@ -3,7 +3,7 @@
 importer="texture"
 type="CompressedTexture2D"
 uid="uid://c11on24fiuv30"
-path="res://.godot/imported/shooter_blast_attack_01.png-50a61f6f3bca1c5440a9b81315c78fbe.ctex"
+path="res://.godot/imported/shooter_blast_attack_01.png-d9c99dcd55746da3e797419263cc7f11.ctex"
 metadata={
 "vram_texture": false
 }
@@ -11,7 +11,7 @@ metadata={
 [deps]
 
 source_file="res://game/enemies/assets/sprites/shooter/blast_attack/shooter_blast_attack_01.png"
-dest_files=["res://.godot/imported/shooter_blast_attack_01.png-50a61f6f3bca1c5440a9b81315c78fbe.ctex"]
+dest_files=["res://.godot/imported/shooter_blast_attack_01.png-d9c99dcd55746da3e797419263cc7f11.ctex"]
 
 [params]
 

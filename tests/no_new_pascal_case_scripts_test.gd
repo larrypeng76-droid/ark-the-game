@@ -6,7 +6,8 @@ const DIRECTORIES: Array[String] = [
 ]
 
 # Legacy allowlist (kept for future incremental migrations).
-const LEGACY_ALLOWLIST: Array[String] = []
+const LEGACY_ALLOWLIST: Array[String] = [
+]
 
 func _init() -> void:
 	call_deferred("_run")

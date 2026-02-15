@@ -1,4 +1,4 @@
-# res://core/combat/Hitbox.gd
+# res://core/combat/hitbox.gd
 
 extends Area2D
 
