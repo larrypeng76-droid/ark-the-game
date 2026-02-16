@@ -1,26 +1,29 @@
 [gd_scene load_steps=3 format=4]
 
 [ext_resource type="Script" path="res://game/world/levels/midground/midground_layer.gd" id="1_midground_script"]
-[ext_resource type="Texture2D" path="res://game/world/assets/midground/winter_homework.png" id="2_midground_tex"]
+[ext_resource type="Texture2D" path="res://game/world/assets/midground/winter_homework.png" id="2_fallback_tex"]
 
-[node name="MidgroundLayer" type="Node2D"]
+[node name="SkyUltraFarLayer" type="Node2D"]
 script = ExtResource("1_midground_script")
-z_index = -10
-y_offset_pixels = 7.0
-viewport_fit_ratio = 0.46
+z_index = -40
+parallax_factor = 0.2
+floor_clearance_pixels = 420.0
+y_offset_pixels = 150.0
+viewport_fit_ratio = 1.0
 scale_multiplier = 2.0
+texture_path_override = "res://game/world/assets/midground/sky_112.jpg"
 
 [node name="VisualA" type="Sprite2D" parent="."]
-texture = ExtResource("2_midground_tex")
+texture = ExtResource("2_fallback_tex")
 centered = false
 texture_filter = 1
 
 [node name="VisualB" type="Sprite2D" parent="."]
-texture = ExtResource("2_midground_tex")
+texture = ExtResource("2_fallback_tex")
 centered = false
 texture_filter = 1
 
 [node name="VisualC" type="Sprite2D" parent="."]
-texture = ExtResource("2_midground_tex")
+texture = ExtResource("2_fallback_tex")
 centered = false
 texture_filter = 1

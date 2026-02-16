@@ -7,6 +7,7 @@ extends Node2D
 @export_range(0.1, 1.0, 0.01) var viewport_fit_ratio: float = 0.92
 @export_range(0.1, 8.0, 0.1) var scale_multiplier: float = 4.0
 @export var texture_override: Texture2D
+@export_file("*.png", "*.jpg", "*.jpeg", "*.webp") var texture_path_override: String = ""
 
 @onready var visual_a: Sprite2D = $VisualA
 @onready var visual_b: Sprite2D = $VisualB
@@ -58,14 +59,31 @@ func _update_position(force_y: bool) -> void:
 
 
 func _apply_texture_override() -> void:
-	if texture_override == null:
+	var resolved_texture: Texture2D = _resolve_texture_override()
+	if resolved_texture == null:
 		return
 	if visual_a != null:
-		visual_a.texture = texture_override
+		visual_a.texture = resolved_texture
 	if visual_b != null:
-		visual_b.texture = texture_override
+		visual_b.texture = resolved_texture
 	if visual_c != null:
-		visual_c.texture = texture_override
+		visual_c.texture = resolved_texture
+
+
+func _resolve_texture_override() -> Texture2D:
+	if texture_override != null:
+		return texture_override
+	if texture_path_override == "":
+		return null
+
+	var res: Resource = load(texture_path_override)
+	if res is Texture2D:
+		return res as Texture2D
+
+	var img: Image = Image.load_from_file(texture_path_override)
+	if img == null or img.is_empty():
+		return null
+	return ImageTexture.create_from_image(img)
 
 
 func _apply_viewport_fit_scale() -> void:

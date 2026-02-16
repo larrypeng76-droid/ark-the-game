@@ -88,6 +88,9 @@ var axe_equipped: bool = false
 var _diggable_ground: Node
 var _auto_pickup_target: Node2D
 var _auto_pickup_stuck_time: float = 0.0
+var _vehicle_climb_targets: Dictionary = {}
+var _pending_vehicle_climb_target: Vector2 = Vector2.ZERO
+var _has_pending_vehicle_climb: bool = false
 
 signal is_crouched_changed(new_value: bool)
 signal is_weapon_drawn_changed(new_value: bool)
@@ -125,6 +128,7 @@ var _initial_axe_spawned: bool = false
 const INVENTORY_UI_GROUP_NAME := "inventory_ui"
 const INVENTORY_UI_SETUP_MAX_RETRIES: int = 10
 const DIGGABLE_GROUND_GROUP_NAME := "diggable_ground"
+const VEHICLE_PAINTING_19_GROUP_NAME := "vehicle_painting_19"
 
 enum collision_shapes { STANDING, CROUCHED }
 
@@ -167,6 +171,7 @@ func _ready():
 	update_health_ui()
 	call_deferred("_setup_inventory_ui")
 	call_deferred("_setup_item_pickups")
+	call_deferred("_setup_vehicle_climbables")
 	_emit_ammo_state_changed()
 	if not get_tree().node_added.is_connected(Callable(self, "_on_tree_node_added")):
 		get_tree().node_added.connect(Callable(self, "_on_tree_node_added"))
@@ -313,6 +318,8 @@ func _input(event: InputEvent) -> void:
 			print_debug("Weapon drawn set " + str(weapon_drawn))
 			
 	jump_pressed = Input.is_action_just_pressed("jump")
+	if _is_vehicle_climb_up_pressed(event):
+		_request_vehicle_climb()
 	
 func _process(delta: float):
 	if is_dead:
@@ -485,6 +492,7 @@ func _align_facing_to_shot_direction() -> void:
 func _physics_process(delta: float):
 	if is_dead:
 		return
+	_apply_pending_vehicle_climb_if_needed()
 	if top_bounce_cooldown_timer > 0.0:
 		top_bounce_cooldown_timer = maxf(top_bounce_cooldown_timer - delta, 0.0)
 	
@@ -557,7 +565,7 @@ func _is_cursor_within_orange_dig_box(cursor_global_position: Vector2) -> bool:
 	return absf(delta.x) <= ORANGE_DIG_BOX_HALF_SIZE and absf(delta.y) <= ORANGE_DIG_BOX_HALF_SIZE
 
 
-func _spawn_dig_preview(global_position: Vector2) -> void:
+func _spawn_dig_preview(target_global_position: Vector2) -> void:
 	var preview := Node2D.new()
 	preview.set_script(DigPreviewEffectScript)
 	preview.position = get_viewport().get_mouse_position()
@@ -565,7 +573,7 @@ func _spawn_dig_preview(global_position: Vector2) -> void:
 	if crosshair_layer != null:
 		crosshair_layer.add_child(preview)
 	else:
-		preview.global_position = global_position
+		preview.global_position = target_global_position
 		get_tree().current_scene.add_child(preview)
 
 
@@ -698,13 +706,13 @@ func _get_cached_opaque_centroid_in_current_frame(img: Image) -> Vector2:
 	if img_w <= 0 or img_h <= 0:
 		return Vector2.ZERO
 
-	var frame_w: int = int(img_w / hframes)
-	var frame_h: int = int(img_h / vframes)
+	var frame_w: int = int(float(img_w) / float(hframes))
+	var frame_h: int = int(float(img_h) / float(vframes))
 	if frame_w <= 0 or frame_h <= 0:
 		return Vector2.ZERO
 
 	var fx: int = (frame_index % hframes) * frame_w
-	var fy: int = int(frame_index / hframes) * frame_h
+	var fy: int = int(float(frame_index) / float(hframes)) * frame_h
 	fx = clampi(fx, 0, max(img_w - frame_w, 0))
 	fy = clampi(fy, 0, max(img_h - frame_h, 0))
 
@@ -753,13 +761,13 @@ func _get_cached_orange_centroid_in_current_frame(img: Image) -> Variant:
 	if img_w <= 0 or img_h <= 0:
 		return null
 
-	var frame_w: int = int(img_w / hframes)
-	var frame_h: int = int(img_h / vframes)
+	var frame_w: int = int(float(img_w) / float(hframes))
+	var frame_h: int = int(float(img_h) / float(vframes))
 	if frame_w <= 0 or frame_h <= 0:
 		return null
 
 	var fx: int = (frame_index % hframes) * frame_w
-	var fy: int = int(frame_index / hframes) * frame_h
+	var fy: int = int(float(frame_index) / float(hframes)) * frame_h
 	fx = clampi(fx, 0, max(img_w - frame_w, 0))
 	fy = clampi(fy, 0, max(img_h - frame_h, 0))
 
@@ -800,13 +808,13 @@ func _get_cached_purple_centroid_in_current_frame(img: Image) -> Variant:
 	if img_w <= 0 or img_h <= 0:
 		return null
 
-	var frame_w: int = int(img_w / hframes)
-	var frame_h: int = int(img_h / vframes)
+	var frame_w: int = int(float(img_w) / float(hframes))
+	var frame_h: int = int(float(img_h) / float(vframes))
 	if frame_w <= 0 or frame_h <= 0:
 		return null
 
 	var fx: int = (frame_index % hframes) * frame_w
-	var fy: int = int(frame_index / hframes) * frame_h
+	var fy: int = int(float(frame_index) / float(hframes)) * frame_h
 	fx = clampi(fx, 0, max(img_w - frame_w, 0))
 	fy = clampi(fy, 0, max(img_h - frame_h, 0))
 
@@ -940,21 +948,21 @@ func set_collision_shape(shape) -> void:
 func apply_knockback(from_position: Vector2, distance: float) -> void:
 	if distance <= 0.0:
 		return
-	var direction: float = 0.0
+	var knockback_direction: float = 0.0
 	if global_position.x > from_position.x:
-		direction = 1.0
+		knockback_direction = 1.0
 	elif global_position.x < from_position.x:
-		direction = -1.0
+		knockback_direction = -1.0
 	else:
-		direction = 1.0
-	var motion: Vector2 = Vector2(direction * distance, 0.0)
+		knockback_direction = 1.0
+	var motion: Vector2 = Vector2(knockback_direction * distance, 0.0)
 	move_and_collide(motion)
 
 func apply_random_knockback(distance: float) -> void:
 	if distance <= 0.0:
 		return
-	var direction: float = -1.0 if rng.randf() < 0.5 else 1.0
-	var motion: Vector2 = Vector2(direction * distance, 0.0)
+	var random_direction: float = -1.0 if rng.randf() < 0.5 else 1.0
+	var motion: Vector2 = Vector2(random_direction * distance, 0.0)
 	move_and_collide(motion)
 
 func _check_top_enemy_bounce(pre_slide_velocity_y: float) -> void:
@@ -1072,6 +1080,28 @@ func _on_inventory_magazine_reload_requested() -> void:
 	request_reload()
 
 
+func _setup_vehicle_climbables() -> void:
+	for node in get_tree().get_nodes_in_group(VEHICLE_PAINTING_19_GROUP_NAME):
+		_connect_vehicle_climbable(node)
+
+
+func _connect_vehicle_climbable(node: Node) -> void:
+	if node == null:
+		return
+	if not node.has_signal("climb_zone_entered"):
+		return
+	if not node.has_signal("climb_zone_exited"):
+		return
+
+	var entered_callable := Callable(self, "_on_vehicle_climb_zone_entered")
+	if not node.is_connected("climb_zone_entered", entered_callable):
+		node.connect("climb_zone_entered", entered_callable)
+
+	var exited_callable := Callable(self, "_on_vehicle_climb_zone_exited")
+	if not node.is_connected("climb_zone_exited", exited_callable):
+		node.connect("climb_zone_exited", exited_callable)
+
+
 func _setup_item_pickups() -> void:
 	for node in get_tree().get_nodes_in_group("item_apple"):
 		_connect_apple_pickup(node)
@@ -1099,6 +1129,8 @@ func _on_tree_node_added(node: Node) -> void:
 		_connect_wood_pickup(node)
 	if node.is_in_group("item_ground_block"):
 		_connect_ground_block_pickup(node)
+	if node.is_in_group(VEHICLE_PAINTING_19_GROUP_NAME):
+		_connect_vehicle_climbable(node)
 
 
 func _connect_apple_pickup(node: Node) -> void:
@@ -1225,6 +1257,22 @@ func _on_ground_block_pickup_requested(drop: Node2D) -> void:
 	_set_auto_pickup_target(drop)
 
 
+func _on_vehicle_climb_zone_entered(vehicle: Node, player_node: Node2D, target_global_position: Vector2) -> void:
+	if vehicle == null:
+		return
+	if player_node != self:
+		return
+	_vehicle_climb_targets[vehicle.get_instance_id()] = target_global_position
+
+
+func _on_vehicle_climb_zone_exited(vehicle: Node, player_node: Node2D) -> void:
+	if vehicle == null:
+		return
+	if player_node != self:
+		return
+	_vehicle_climb_targets.erase(vehicle.get_instance_id())
+
+
 func _set_auto_pickup_target(target: Node2D) -> void:
 	if is_dead:
 		return
@@ -1295,6 +1343,59 @@ func _update_auto_pickup_jump_helper(delta: float) -> void:
 	if _auto_pickup_stuck_time >= auto_pickup_jump_delay:
 		queue_jump()
 		_auto_pickup_stuck_time = 0.0
+
+
+func _is_vehicle_climb_up_pressed(event: InputEvent) -> bool:
+	if Input.is_action_just_pressed("ui_up"):
+		return true
+	if not (event is InputEventKey):
+		return false
+	var key_event: InputEventKey = event as InputEventKey
+	if key_event == null:
+		return false
+	return key_event.pressed and not key_event.echo and key_event.physical_keycode == KEY_UP
+
+
+func _request_vehicle_climb() -> void:
+	if _vehicle_climb_targets.is_empty():
+		return
+	var target_variant: Variant = _pick_nearest_vehicle_climb_target()
+	if not (target_variant is Vector2):
+		return
+	_pending_vehicle_climb_target = target_variant as Vector2
+	_has_pending_vehicle_climb = true
+
+
+func _pick_nearest_vehicle_climb_target() -> Variant:
+	var found_target: bool = false
+	var best_target: Vector2 = Vector2.ZERO
+	var best_distance_sq: float = INF
+	for target_variant: Variant in _vehicle_climb_targets.values():
+		if not (target_variant is Vector2):
+			continue
+		var target: Vector2 = target_variant as Vector2
+		var distance_sq: float = global_position.distance_squared_to(target)
+		if distance_sq >= best_distance_sq:
+			continue
+		best_distance_sq = distance_sq
+		best_target = target
+		found_target = true
+	if not found_target:
+		return null
+	return best_target
+
+
+func _apply_pending_vehicle_climb_if_needed() -> void:
+	if not _has_pending_vehicle_climb:
+		return
+	_has_pending_vehicle_climb = false
+	force_stand()
+	global_position = _pending_vehicle_climb_target
+	velocity = Vector2.ZERO
+	jumps = 0
+	coyote_timer = coyote_time
+	buffer_timer = -1.0
+	state_machine.call("change_state", "IdleState")
 
 
 func _on_inventory_item_use_requested(item_id: String) -> void:

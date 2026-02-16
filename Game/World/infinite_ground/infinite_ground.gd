@@ -6,6 +6,11 @@ const GROUND_TEXTURE := preload("res://game/world/assets/tilemaps/Tilemap-Sides-
 const GroundBlockDropScene := preload("res://game/features/items/ground_block/ground_block_drop.tscn")
 const WoodDropScene := preload("res://game/features/items/wood/wood_drop.tscn")
 const BigTreeFeatherShader := preload("res://game/world/infinite_ground/big_tree_feather.gdshader")
+const SproutEdgeFeatherShader := preload("res://game/world/infinite_ground/sprout_edge_feather.gdshader")
+const PAINTING_SPROUT_RANDOM_TEXTURE_PATHS: Array[String] = [
+	"res://game/world/assets/sprouts/painting_17.png",
+	"res://game/world/assets/sprouts/painting_18.png",
+]
 
 @export_group("Generation")
 @export_range(8, 256, 1) var block_size: int = 10
@@ -77,6 +82,24 @@ const BigTreeFeatherShader := preload("res://game/world/infinite_ground/big_tree
 @export_range(0.05, 3.0, 0.01) var grass_sprouts_height_blocks_max: float = 0.85
 @export_range(0.0, 1.0, 0.01) var grass_sprouts_horizontal_jitter_blocks: float = 0.35
 
+@export_group("Painting Sprouts")
+@export var painting_sprouts_enabled: bool = true
+@export_range(0.0, 1.0, 0.01) var painting_sprouts_density: float = 0.04
+@export var painting_sprouts_texture: Texture2D
+@export_range(0.2, 8.0, 0.05) var painting_sprouts_width_blocks: float = 1.0
+@export_range(0.5, 20.0, 0.1) var painting_sprouts_height_blocks: float = 10.0
+@export_range(1.0, 512.0, 1.0) var painting_sprouts_height_px_min: float = 18.0
+@export_range(1.0, 512.0, 1.0) var painting_sprouts_height_px_max: float = 25.0
+@export_range(-200.0, 200.0, 1.0) var painting_sprouts_vertical_offset_px: float = 0.0
+@export_range(1, 32, 1) var painting_sprouts_instances_per_column: int = 1
+@export_range(0.0, 2.0, 0.01) var painting_sprouts_horizontal_jitter_blocks: float = 0.35
+@export_range(0.0, 0.95, 0.01) var painting_sprouts_max_overlap_ratio: float = 0.15
+@export_range(0.0, 8.0, 0.1) var painting_sprouts_edge_feather_px: float = 1.5
+@export_range(0.0, 1.0, 0.01) var painting_sprouts_alpha_multiplier: float = 0.92
+@export_range(-90.0, 0.0, 1.0) var painting_sprouts_swing_min_degrees: float = -10.0
+@export_range(0.0, 90.0, 1.0) var painting_sprouts_swing_max_degrees: float = 10.0
+@export_range(0.05, 4.0, 0.05) var painting_sprouts_swing_speed: float = 1.2
+
 const PLAYER_GROUP_NAME := "player"
 const DIGGABLE_GROUND_GROUP := "diggable_ground"
 const TERRAIN_LAYER_BIT: int = 1 << 2
@@ -91,14 +114,18 @@ var player: Node2D
 var blocks_root: Node2D
 var trees_root: Node2D
 var grass_sprouts_root: Node2D
+var painting_sprouts_root: Node2D
 var _active_blocks: Dictionary = {}
 var _dug_blocks: Dictionary = {}
 var _active_trees: Dictionary = {}
 var _active_grass_sprouts: Dictionary = {}
+var _active_painting_sprouts: Dictionary = {}
 var _tree_protected_cells: Dictionary = {}
 var _custom_grass_texture: Texture2D
 var _floor_cycle_textures: Array[Texture2D] = []
 var _floor_top_line_texture: Texture2D
+var _painting_sprout_material: ShaderMaterial
+var _painting_sprout_random_textures: Array[Texture2D] = []
 
 
 func _ready() -> void:
@@ -112,17 +139,23 @@ func _ready() -> void:
 	grass_sprouts_root = Node2D.new()
 	grass_sprouts_root.name = "GrassSprouts"
 	add_child(grass_sprouts_root)
+	painting_sprouts_root = Node2D.new()
+	painting_sprouts_root.name = "PaintingSprouts"
+	add_child(painting_sprouts_root)
 	# Optional override so the grass cap can use custom art instead of the procedural texture.
 	_custom_grass_texture = grass_cap_texture_override if grass_cap_texture_override != null else _create_custom_grass_texture()
 	_floor_cycle_textures = _load_floor_cycle_textures()
 	_floor_top_line_texture = _create_top_line_texture() if floor_cycle_top_line_enabled else null
+	_painting_sprout_material = _create_painting_sprout_material()
+	_painting_sprout_random_textures = _load_painting_sprout_random_textures()
 
 	_try_find_player()
 	if player != null:
 		_update_around_player(true)
 
 
-func _process(_delta: float) -> void:
+func _process(delta: float) -> void:
+	_update_painting_sprout_sway(delta)
 	if player == null:
 		_try_find_player()
 		if player == null:
@@ -133,11 +166,11 @@ func _process(_delta: float) -> void:
 	_update_around_player()
 
 
-func dig_at(global_position: Vector2, radius: float) -> int:
+func dig_at(target_global_position: Vector2, radius: float) -> int:
 	if radius <= 0.0:
 		return 0
 
-	var local_center: Vector2 = to_local(global_position)
+	var local_center: Vector2 = to_local(target_global_position)
 	var min_corner: Vector2 = local_center - Vector2(radius, radius)
 	var max_corner: Vector2 = local_center + Vector2(radius, radius)
 	var min_cell: Vector2i = _world_to_block(min_corner)
@@ -159,11 +192,11 @@ func dig_at(global_position: Vector2, radius: float) -> int:
 	return removed_count
 
 
-func chop_trees_at(global_position: Vector2, radius: float) -> int:
+func chop_trees_at(target_global_position: Vector2, radius: float) -> int:
 	if radius <= 0.0:
 		return 0
 
-	var local_center: Vector2 = to_local(global_position)
+	var local_center: Vector2 = to_local(target_global_position)
 	var min_corner: Vector2 = local_center - Vector2(radius, radius)
 	var max_corner: Vector2 = local_center + Vector2(radius, radius)
 	var min_cell: Vector2i = _world_to_block(min_corner)
@@ -286,6 +319,7 @@ func _generate_rect(min_x: int, max_x: int, min_y: int, max_y: int) -> void:
 		_create_grass_cap_block(grass_cell)
 		_try_spawn_tree_on_grass_cell(grass_cell)
 		_try_spawn_grass_sprouts_on_grass_cell(grass_cell)
+		_try_spawn_painting_sprouts_on_grass_cell(grass_cell)
 
 
 
@@ -389,6 +423,152 @@ func _try_spawn_grass_sprouts_on_grass_cell(grass_cell: Vector2i) -> void:
 		return
 	grass_sprouts_root.add_child(sprouts)
 	_active_grass_sprouts[column_x] = sprouts
+
+func _try_spawn_painting_sprouts_on_grass_cell(grass_cell: Vector2i) -> void:
+	if not painting_sprouts_enabled:
+		return
+	if painting_sprouts_texture == null and _painting_sprout_random_textures.is_empty():
+		return
+	var column_x: int = grass_cell.x
+	if _active_painting_sprouts.has(column_x):
+		return
+	if _active_trees.has(column_x):
+		return
+	if _column_random01(column_x, 301) > clampf(painting_sprouts_density, 0.0, 1.0):
+		return
+
+	var nodes: Array[Node2D] = []
+	var count: int = maxi(1, painting_sprouts_instances_per_column)
+	var target_w: float = float(block_size) * maxf(0.2, painting_sprouts_width_blocks)
+	var overlap_ratio: float = clampf(painting_sprouts_max_overlap_ratio, 0.0, 0.95)
+	var min_separation_px: float = target_w * (1.0 - overlap_ratio)
+	var jitter_px: float = float(block_size) * maxf(0.0, painting_sprouts_horizontal_jitter_blocks)
+	var offsets: Array[float] = _generate_painting_sprout_offsets(column_x, count, jitter_px, min_separation_px)
+	for i in range(offsets.size()):
+		var x_offset: float = offsets[i]
+		var node: Node2D = _create_painting_sprouts_node(grass_cell, x_offset, i)
+		if node == null:
+			continue
+		painting_sprouts_root.add_child(node)
+		nodes.append(node)
+	if nodes.is_empty():
+		return
+	_active_painting_sprouts[column_x] = nodes
+
+func _create_painting_sprouts_node(grass_cell: Vector2i, x_offset_px: float, index_in_column: int) -> Node2D:
+	var column_x: int = grass_cell.x
+	var sprout_texture: Texture2D = _pick_painting_sprout_texture(column_x, index_in_column)
+	if sprout_texture == null:
+		return null
+	var node := Node2D.new()
+	node.name = "PaintingSprout_%d_%d" % [column_x, index_in_column]
+
+	var base_x: float = (float(column_x) + 0.5) * float(block_size)
+	var surface_y: float = float(grass_cell.y * block_size)
+	node.position = Vector2(base_x + x_offset_px, surface_y + painting_sprouts_vertical_offset_px)
+
+	var sprite := Sprite2D.new()
+	sprite.texture = sprout_texture
+	sprite.centered = true
+	sprite.texture_filter = CanvasItem.TEXTURE_FILTER_LINEAR
+	sprite.z_index = 2
+	if _painting_sprout_material != null:
+		sprite.material = _painting_sprout_material
+
+	var tex_size: Vector2 = sprout_texture.get_size()
+	var tex_w: float = maxf(tex_size.x, 1.0)
+	var tex_h: float = maxf(tex_size.y, 1.0)
+	var target_w: float = float(block_size) * maxf(0.2, painting_sprouts_width_blocks)
+	var h_min_px: float = minf(painting_sprouts_height_px_min, painting_sprouts_height_px_max)
+	var h_max_px: float = maxf(painting_sprouts_height_px_min, painting_sprouts_height_px_max)
+	var h_rand_t: float = _column_random01(column_x, 305 + index_in_column * 11)
+	var target_h: float = lerpf(h_min_px, h_max_px, h_rand_t)
+	if target_h <= 0.0:
+		target_h = float(block_size) * maxf(0.5, painting_sprouts_height_blocks)
+	sprite.scale = Vector2(target_w / tex_w, target_h / tex_h)
+	# Base of the image stays planted on the ground while parent node rotates.
+	sprite.position = Vector2(0.0, -target_h * 0.5)
+	node.add_child(sprite)
+
+	var global_min_deg: float = minf(painting_sprouts_swing_min_degrees, painting_sprouts_swing_max_degrees)
+	var global_max_deg: float = maxf(painting_sprouts_swing_min_degrees, painting_sprouts_swing_max_degrees)
+	var min_pick_t: float = _column_random01(column_x, 302 + index_in_column * 11)
+	var node_min_deg: float = lerpf(global_min_deg, global_max_deg, min_pick_t)
+	var max_pick_t: float = _column_random01(column_x, 303 + index_in_column * 11)
+	var node_max_deg: float = lerpf(node_min_deg, global_max_deg, max_pick_t)
+	if node_max_deg - node_min_deg < 0.001:
+		node_max_deg = minf(global_max_deg, node_min_deg + 0.1)
+
+	# Random starting angle per sprout, then solve phase so sway continues smoothly.
+	var start_t: float = _column_random01(column_x, 304 + index_in_column * 11)
+	var start_deg: float = lerpf(node_min_deg, node_max_deg, start_t)
+	node.rotation = deg_to_rad(start_deg)
+	var sin_target: float = clampf(start_t * 2.0 - 1.0, -1.0, 1.0)
+	var now_t: float = Time.get_ticks_msec() * 0.001 * painting_sprouts_swing_speed
+	var phase: float = asin(sin_target) - now_t
+
+	node.set_meta("sway_phase", phase)
+	node.set_meta("sway_min_deg", node_min_deg)
+	node.set_meta("sway_max_deg", node_max_deg)
+	return node
+
+func _pick_painting_sprout_texture(column_x: int, index_in_column: int) -> Texture2D:
+	if not _painting_sprout_random_textures.is_empty():
+		var pick_t: float = _column_random01(column_x, 306 + index_in_column * 11)
+		var idx: int = clampi(int(floor(pick_t * float(_painting_sprout_random_textures.size()))), 0, _painting_sprout_random_textures.size() - 1)
+		var tex: Texture2D = _painting_sprout_random_textures[idx]
+		if tex != null:
+			return tex
+	return painting_sprouts_texture
+
+func _load_painting_sprout_random_textures() -> Array[Texture2D]:
+	var textures: Array[Texture2D] = []
+	for path: String in PAINTING_SPROUT_RANDOM_TEXTURE_PATHS:
+		if not FileAccess.file_exists(path):
+			continue
+		if FileAccess.file_exists(path + ".import"):
+			var res: Resource = load(path)
+			if res is Texture2D:
+				textures.append(res as Texture2D)
+				continue
+		# Fallback for fresh PNGs without .import metadata yet.
+		var img: Image = Image.load_from_file(path)
+		if img != null and not img.is_empty():
+			var tex := ImageTexture.create_from_image(img)
+			if tex != null:
+				textures.append(tex)
+	return textures
+
+func _create_painting_sprout_material() -> ShaderMaterial:
+	if SproutEdgeFeatherShader == null:
+		return null
+	var mat := ShaderMaterial.new()
+	mat.shader = SproutEdgeFeatherShader
+	mat.set_shader_parameter("feather_px", maxf(0.0, painting_sprouts_edge_feather_px))
+	mat.set_shader_parameter("alpha_multiplier", clampf(painting_sprouts_alpha_multiplier, 0.0, 1.0))
+	return mat
+
+func _generate_painting_sprout_offsets(column_x: int, count: int, jitter_px: float, min_separation_px: float) -> Array[float]:
+	var offsets: Array[float] = []
+	if count <= 0:
+		return offsets
+
+	var half_span: float = maxf(jitter_px, 0.0)
+	if count > 1 and min_separation_px > 0.0:
+		var required_half_span: float = float(count - 1) * min_separation_px * 0.5
+		half_span = maxf(half_span, required_half_span)
+
+	if count == 1:
+		offsets.append(lerpf(-half_span, half_span, _column_random01(column_x, 320)))
+		return offsets
+
+	var total_span: float = float(count - 1) * min_separation_px
+	var min_start: float = -half_span
+	var max_start: float = half_span - total_span
+	var start: float = lerpf(min_start, max_start, _column_random01(column_x, 321))
+	for i in range(count):
+		offsets.append(start + float(i) * min_separation_px)
+	return offsets
 
 
 func _create_grass_sprouts_node(grass_cell: Vector2i) -> Node2D:
@@ -622,6 +802,47 @@ func _remove_grass_sprouts(column_x: int) -> void:
 	if node != null and is_instance_valid(node):
 		node.queue_free()
 
+func _remove_painting_sprouts(column_x: int) -> void:
+	if not _active_painting_sprouts.has(column_x):
+		return
+	var nodes_variant: Variant = _active_painting_sprouts[column_x]
+	_active_painting_sprouts.erase(column_x)
+	if nodes_variant is Array:
+		var nodes: Array = nodes_variant
+		for item: Variant in nodes:
+			var node: Node2D = item as Node2D
+			if node != null and is_instance_valid(node):
+				node.queue_free()
+
+func _update_painting_sprout_sway(delta: float) -> void:
+	if _active_painting_sprouts.is_empty():
+		return
+	if delta <= 0.0:
+		return
+	var t: float = Time.get_ticks_msec() * 0.001 * painting_sprouts_swing_speed
+	for value: Variant in _active_painting_sprouts.values():
+		if not (value is Array):
+			continue
+		var nodes: Array = value
+		for item: Variant in nodes:
+			var node: Node2D = item as Node2D
+			if node == null or not is_instance_valid(node):
+				continue
+			var min_deg_variant: Variant = node.get_meta("sway_min_deg", painting_sprouts_swing_min_degrees)
+			var max_deg_variant: Variant = node.get_meta("sway_max_deg", painting_sprouts_swing_max_degrees)
+			var min_deg: float = float(min_deg_variant)
+			var max_deg: float = float(max_deg_variant)
+			if max_deg < min_deg:
+				var tmp: float = min_deg
+				min_deg = max_deg
+				max_deg = tmp
+			var center_deg: float = (min_deg + max_deg) * 0.5
+			var amp_deg: float = (max_deg - min_deg) * 0.5
+			var phase_variant: Variant = node.get_meta("sway_phase", 0.0)
+			var phase: float = float(phase_variant)
+			var angle_deg: float = center_deg + sin(t + phase) * amp_deg
+			node.rotation = deg_to_rad(angle_deg)
+
 
 func _spawn_wood_drops(tree_global_position: Vector2) -> void:
 	if WoodDropScene == null:
@@ -777,9 +998,17 @@ func _remove_block(cell: Vector2i, mark_as_dug: bool) -> void:
 	if mark_as_dug:
 		_dug_blocks[cell] = true
 		_spawn_block_drop(cell)
-		if cell.y == _get_grass_cap_y():
+		var grass_cap_y: int = _get_grass_cap_y()
+		var grass_support_y: int = grass_cap_y + 1
+		if cell.y == grass_cap_y:
 			_remove_tree(cell.x)
 			_remove_grass_sprouts(cell.x)
+			_remove_painting_sprouts(cell.x)
+		elif cell.y == grass_support_y:
+			# If the support block directly under the grass cap is removed,
+			# clear decorative sprouts in that column.
+			_remove_grass_sprouts(cell.x)
+			_remove_painting_sprouts(cell.x)
 
 	if not _active_blocks.has(cell):
 		return
@@ -815,6 +1044,7 @@ func _trim_outside_range(keep_min_x: int, keep_max_x: int) -> void:
 		for x in range(generated_min_x, keep_min_x):
 			_remove_tree(x)
 			_remove_grass_sprouts(x)
+			_remove_painting_sprouts(x)
 			for y in range(_get_grass_cap_y(), generated_max_y + 1):
 				_remove_block(Vector2i(x, y), false)
 		generated_min_x = keep_min_x
@@ -823,6 +1053,7 @@ func _trim_outside_range(keep_min_x: int, keep_max_x: int) -> void:
 		for x in range(keep_max_x + 1, generated_max_x + 1):
 			_remove_tree(x)
 			_remove_grass_sprouts(x)
+			_remove_painting_sprouts(x)
 			for y in range(_get_grass_cap_y(), generated_max_y + 1):
 				_remove_block(Vector2i(x, y), false)
 		generated_max_x = keep_max_x

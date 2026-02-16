@@ -1,10 +1,11 @@
-[gd_scene load_steps=6 format=4]
+[gd_scene load_steps=7 format=4]
 
 [ext_resource type="Script" path="res://game/world/infinite_ground/infinite_ground.gd" id="1_7jjf3"]
 [ext_resource type="Texture2D" path="res://game/world/assets/trees/small_tree.png" id="2_o7c7h"]
 [ext_resource type="Texture2D" path="res://game/world/assets/trees/big_tree.png" id="3_j1cxa"]
 [ext_resource type="Texture2D" path="res://game/world/assets/tilemaps/IMG_1700.jpg" id="4_6v14s"]
 [ext_resource type="Texture2D" path="res://game/world/assets/tilemaps/img_1705_cutout.png" id="5_1698orig"]
+[ext_resource type="Texture2D" path="res://game/world/assets/sprouts/painting_13.png" id="6_paint13"]
 
 [node name="InfiniteGround" type="Node2D"]
 script = ExtResource("1_7jjf3")
@@ -17,3 +18,16 @@ small_tree_texture_scale = Vector2(0.0500000007, 0.0500000007)
 big_tree_texture = ExtResource("3_j1cxa")
 big_tree_texture_scale = Vector2(0.0274999998, 0.0274999998)
 big_tree_texture_offset = Vector2(0, 4)
+painting_sprouts_density = 1.0
+painting_sprouts_texture = ExtResource("6_paint13")
+painting_sprouts_width_blocks = 4.0
+painting_sprouts_height_blocks = 2.5
+painting_sprouts_height_px_min = 18.0
+painting_sprouts_height_px_max = 25.0
+painting_sprouts_vertical_offset_px = 9.0
+painting_sprouts_instances_per_column = 15
+painting_sprouts_swing_min_degrees = 5.0
+painting_sprouts_swing_max_degrees = 10.0
+painting_sprouts_max_overlap_ratio = 0.15
+painting_sprouts_edge_feather_px = 3.2
+painting_sprouts_alpha_multiplier = 0.72

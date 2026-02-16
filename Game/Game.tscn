@@ -9,10 +9,10 @@ position = Vector2(-17, -173)
 scale = Vector2(1.5, 1.5)
 
 [node name="Player" parent="." instance=ExtResource("2_cpr0p")]
-position = Vector2(10.666667, 206.66667)
+position = Vector2(65.333336, 576.6667)
 
 [node name="Level" parent="." instance=ExtResource("2_gl6un")]
-position = Vector2(10.666667, 25.333328)
+position = Vector2(-57.333332, 320.00003)
 rotation = -6.2831855
 
 [node name="InventoryUI" parent="." instance=ExtResource("3_inv")]

@@ -1,0 +1,61 @@
+[gd_scene load_steps=8 format=3]
+
+[ext_resource type="Script" path="res://game/world/vehicles/painting_19_vehicle/painting_19_vehicle.gd" id="1_vehicle_script"]
+[ext_resource type="Texture2D" path="res://game/world/vehicles/painting_19_vehicle/assets/00000.png" id="2_vehicle_texture"]
+
+[sub_resource type="RectangleShape2D" id="1_top_surface_shape"]
+size = Vector2(330, 14)
+
+[sub_resource type="RectangleShape2D" id="2_side_wall_shape"]
+size = Vector2(16, 56)
+
+[sub_resource type="RectangleShape2D" id="3_climb_area_shape"]
+size = Vector2(28, 62)
+
+[node name="Painting19Vehicle" type="Node2D"]
+script = ExtResource("1_vehicle_script")
+
+[node name="Visual" type="Sprite2D" parent="."]
+position = Vector2(0, -8)
+scale = Vector2(0.09, 0.09)
+texture = ExtResource("2_vehicle_texture")
+
+[node name="TerrainBody" type="StaticBody2D" parent="."]
+collision_layer = 4
+collision_mask = 0
+
+[node name="TopSurfaceCollision" type="CollisionShape2D" parent="TerrainBody"]
+position = Vector2(0, -24)
+shape = SubResource("1_top_surface_shape")
+
+[node name="LeftWallCollision" type="CollisionShape2D" parent="TerrainBody"]
+position = Vector2(-165, 4)
+shape = SubResource("2_side_wall_shape")
+
+[node name="RightWallCollision" type="CollisionShape2D" parent="TerrainBody"]
+position = Vector2(165, 4)
+shape = SubResource("2_side_wall_shape")
+
+[node name="LeftClimbArea" type="Area2D" parent="."]
+collision_layer = 0
+collision_mask = 1
+monitorable = false
+
+[node name="CollisionShape2D" type="CollisionShape2D" parent="LeftClimbArea"]
+position = Vector2(-176, -4)
+shape = SubResource("3_climb_area_shape")
+
+[node name="RightClimbArea" type="Area2D" parent="."]
+collision_layer = 0
+collision_mask = 1
+monitorable = false
+
+[node name="CollisionShape2D" type="CollisionShape2D" parent="RightClimbArea"]
+position = Vector2(176, -4)
+shape = SubResource("3_climb_area_shape")
+
+[node name="LeftClimbTarget" type="Marker2D" parent="."]
+position = Vector2(-138, -38)
+
+[node name="RightClimbTarget" type="Marker2D" parent="."]
+position = Vector2(138, -38)
