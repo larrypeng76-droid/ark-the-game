@@ -1,19 +1,29 @@
-[gd_scene load_steps=8 format=3]
+[gd_scene load_steps=11 format=3]
 
 [ext_resource type="Script" path="res://game/world/vehicles/painting_19_vehicle/painting_19_vehicle.gd" id="1_vehicle_script"]
 [ext_resource type="Texture2D" path="res://game/world/vehicles/painting_19_vehicle/assets/00000.png" id="2_vehicle_texture"]
 
 [sub_resource type="RectangleShape2D" id="1_top_surface_shape"]
-size = Vector2(330, 14)
+size = Vector2(328, 4)
 
 [sub_resource type="RectangleShape2D" id="2_side_wall_shape"]
-size = Vector2(16, 56)
+size = Vector2(14, 32)
 
 [sub_resource type="RectangleShape2D" id="3_climb_area_shape"]
 size = Vector2(28, 62)
 
+[sub_resource type="RectangleShape2D" id="4_drive_control_shape"]
+size = Vector2(312, 18)
+
+[sub_resource type="RectangleShape2D" id="5_fuel_interact_shape"]
+size = Vector2(52, 30)
+
+[sub_resource type="RectangleShape2D" id="6_tile_support_shape"]
+size = Vector2(328, 12)
+
 [node name="Painting19Vehicle" type="Node2D"]
 script = ExtResource("1_vehicle_script")
+snap_visual_bottom_offset_y = 0.0
 
 [node name="Visual" type="Sprite2D" parent="."]
 position = Vector2(0, -8)
@@ -25,16 +35,61 @@ collision_layer = 4
 collision_mask = 0
 
 [node name="TopSurfaceCollision" type="CollisionShape2D" parent="TerrainBody"]
-position = Vector2(0, -24)
+position = Vector2(0, -13)
 shape = SubResource("1_top_surface_shape")
 
 [node name="LeftWallCollision" type="CollisionShape2D" parent="TerrainBody"]
-position = Vector2(-165, 4)
+position = Vector2(-165, 1)
 shape = SubResource("2_side_wall_shape")
 
 [node name="RightWallCollision" type="CollisionShape2D" parent="TerrainBody"]
-position = Vector2(165, 4)
+position = Vector2(165, 1)
 shape = SubResource("2_side_wall_shape")
+
+[node name="TileSupportCollision" type="CollisionShape2D" parent="TerrainBody"]
+position = Vector2(0, -9)
+shape = SubResource("6_tile_support_shape")
+
+[node name="FuelPromptLabel" type="Label" parent="."]
+visible = false
+offset_left = -38.0
+offset_top = -24.0
+offset_right = 38.0
+offset_bottom = -10.0
+mouse_filter = 2
+theme_override_font_sizes/font_size = 3
+text = "添加燃料"
+horizontal_alignment = 1
+
+[node name="FuelValueLabel" type="Label" parent="."]
+visible = false
+offset_left = -38.0
+offset_top = -10.0
+offset_right = 38.0
+offset_bottom = 2.0
+mouse_filter = 2
+theme_override_font_sizes/font_size = 3
+text = "0/100"
+horizontal_alignment = 1
+
+[node name="FuelInteractArea" type="Area2D" parent="."]
+collision_layer = 1
+collision_mask = 1
+monitoring = false
+monitorable = false
+
+[node name="CollisionShape2D" type="CollisionShape2D" parent="FuelInteractArea"]
+position = Vector2(0, 8)
+shape = SubResource("5_fuel_interact_shape")
+
+[node name="DriveControlArea" type="Area2D" parent="."]
+collision_layer = 0
+collision_mask = 1
+monitorable = false
+
+[node name="CollisionShape2D" type="CollisionShape2D" parent="DriveControlArea"]
+position = Vector2(0, -20)
+shape = SubResource("4_drive_control_shape")
 
 [node name="LeftClimbArea" type="Area2D" parent="."]
 collision_layer = 0

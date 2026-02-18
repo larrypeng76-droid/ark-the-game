@@ -7,6 +7,7 @@ const PlayerCombatLogic := preload("res://game/player/player_combat_logic.gd")
 const PlayerHealthLogic := preload("res://game/player/player_health_logic.gd")
 const DigPreviewEffectScript := preload("res://game/player/dig_preview_effect.gd")
 const SurfaceDarknessOverlayShader := preload("res://game/player/surface_darkness_overlay.gdshader")
+const GroundBlockGridOverlayScript := preload("res://game/player/ground_block_grid_overlay.gd")
 const AxePickupScene := preload("res://game/features/items/axe/axe.tscn")
 
 @export_group("World")
@@ -47,8 +48,15 @@ const AxePickupScene := preload("res://game/features/items/axe/axe.tscn")
 @export_range(0.0, 2000.0, 1.0) var surface_darkness_start_depth: float = 80.0
 @export_range(1.0, 2000.0, 1.0) var surface_darkness_end_depth: float = 200.0
 
+@export_group("Ground Block Grid")
+@export var ground_block_grid_color: Color = Color(1.0, 1.0, 1.0, 0.4)
+@export_range(0.1, 4.0, 0.01) var ground_block_grid_line_width: float = 1.0 / 3.0
+
 const ORANGE_DIG_BOX_SIZE: float = 50.0
 const ORANGE_DIG_BOX_HALF_SIZE: float = ORANGE_DIG_BOX_SIZE * 0.5
+const GROUND_BLOCK_GRID_RANGE_SIZE: Vector2 = Vector2(75.0, 90.0)
+const GROUND_BLOCK_GRID_HALF_RANGE_SIZE: Vector2 = GROUND_BLOCK_GRID_RANGE_SIZE * 0.5
+const GROUND_BLOCK_GRID_CENTER_OFFSET: Vector2 = Vector2(0.0, -30.0)
 
 @export_group("Player Health")
 @export var max_health: int = 10
@@ -123,12 +131,16 @@ var combat_logic: RefCounted
 
 var inventory_ui: CanvasLayer
 var _initial_pickaxe_granted: bool = false
+var _initial_ground_blocks_granted: bool = false
 var _initial_axe_spawned: bool = false
 
 const INVENTORY_UI_GROUP_NAME := "inventory_ui"
 const INVENTORY_UI_SETUP_MAX_RETRIES: int = 10
 const DIGGABLE_GROUND_GROUP_NAME := "diggable_ground"
 const VEHICLE_PAINTING_19_GROUP_NAME := "vehicle_painting_19"
+const ITEM_GROUND_BLOCK := "ground_block"
+const PLAYER_LAYER_BIT: int = 1 << 0
+const INITIAL_GROUND_BLOCK_COUNT: int = 1000
 
 enum collision_shapes { STANDING, CROUCHED }
 
@@ -143,6 +155,7 @@ var _purple_centroid_cache: Dictionary = {}
 var _equipped_pickaxe_sprite: Sprite2D
 var _surface_darkness_overlay: ColorRect
 var _surface_darkness_material: ShaderMaterial
+var _ground_block_grid_overlay: Node2D
 
 const ENEMY_LAYER_MASK: int = 1 << 1
 
@@ -158,6 +171,7 @@ func _ready():
 	_init_ammo_state()
 	_setup_equipped_pickaxe_visual()
 	_setup_surface_darkness_overlay()
+	call_deferred("_setup_ground_block_grid_overlay")
 	_update_crosshair_visibility()
 	
 	animation_player.animation_finished.connect(_on_animation_finished)
@@ -245,6 +259,13 @@ func _input(event: InputEvent) -> void:
 	if is_dead:
 		return
 
+	if _is_ground_block_grid_active():
+		if event is InputEventMouseButton:
+			var grid_mouse_button: InputEventMouseButton = event
+			if grid_mouse_button.button_index == MOUSE_BUTTON_LEFT and grid_mouse_button.pressed:
+				_try_place_ground_block_at_cursor_if_allowed()
+				return
+
 	if pickaxe_equipped:
 		if event is InputEventMouseButton:
 			var dig_mouse_button: InputEventMouseButton = event
@@ -326,6 +347,9 @@ func _process(delta: float):
 		return
 
 	_update_auto_pickup_movement()
+	if _ground_block_grid_overlay != null and is_instance_valid(_ground_block_grid_overlay):
+		if _ground_block_grid_overlay.visible:
+			_configure_ground_block_grid_overlay()
 	_update_crosshair_visibility()
 	state_machine.call("process_update", delta)
 	debug_weapon_drawn.text = "WeaponDrawn: %s" % str(weapon_drawn)
@@ -386,6 +410,137 @@ func _update_surface_darkness_overlay() -> void:
 	_surface_darkness_material.set_shader_parameter("clear_radius", surface_clear_radius)
 	_surface_darkness_material.set_shader_parameter("edge_fade", surface_edge_fade)
 	_surface_darkness_material.set_shader_parameter("darkness_alpha", dynamic_alpha)
+
+
+func _setup_ground_block_grid_overlay() -> void:
+	var scene_root: Node = get_tree().current_scene
+	if scene_root == null:
+		scene_root = get_tree().root
+	if scene_root == null:
+		return
+
+	var existing_overlay: Node2D = scene_root.get_node_or_null("GroundBlockGridOverlay") as Node2D
+	if existing_overlay != null:
+		_ground_block_grid_overlay = existing_overlay
+	else:
+		var overlay_node := Node2D.new()
+		overlay_node.name = "GroundBlockGridOverlay"
+		overlay_node.set_script(GroundBlockGridOverlayScript)
+		scene_root.add_child(overlay_node)
+		_ground_block_grid_overlay = overlay_node
+
+	_configure_ground_block_grid_overlay()
+	_set_ground_block_grid_visible(false)
+
+
+func _configure_ground_block_grid_overlay() -> void:
+	if _ground_block_grid_overlay == null or not is_instance_valid(_ground_block_grid_overlay):
+		_setup_ground_block_grid_overlay()
+	if _ground_block_grid_overlay == null or not is_instance_valid(_ground_block_grid_overlay):
+		return
+
+	var block_size_px: float = 15.0
+	var ground_origin_global: Vector2 = Vector2.ZERO
+	var ground: Node = _get_diggable_ground()
+	if ground is Node2D:
+		var ground_node: Node2D = ground as Node2D
+		ground_origin_global = ground_node.global_position
+
+	if _ground_block_grid_overlay.has_method("configure_grid"):
+		_ground_block_grid_overlay.call(
+			"configure_grid",
+			block_size_px,
+			ground_origin_global,
+			ground_block_grid_color,
+			ground_block_grid_line_width,
+			global_position + GROUND_BLOCK_GRID_CENTER_OFFSET,
+			GROUND_BLOCK_GRID_RANGE_SIZE
+		)
+
+
+func _set_ground_block_grid_visible(active: bool) -> void:
+	if _ground_block_grid_overlay == null or not is_instance_valid(_ground_block_grid_overlay):
+		return
+	if _ground_block_grid_overlay.has_method("set_grid_visible"):
+		_ground_block_grid_overlay.call("set_grid_visible", active)
+
+
+func _is_ground_block_grid_active() -> bool:
+	return _ground_block_grid_overlay != null and is_instance_valid(_ground_block_grid_overlay) and _ground_block_grid_overlay.visible
+
+
+func _try_place_ground_block_at_cursor_if_allowed() -> void:
+	if inventory_ui == null or not is_instance_valid(inventory_ui):
+		_set_ground_block_grid_visible(false)
+		return
+	if not inventory_ui.has_method("get_count"):
+		_set_ground_block_grid_visible(false)
+		return
+	if not inventory_ui.has_method("consume_one"):
+		_set_ground_block_grid_visible(false)
+		return
+
+	var ground_block_count: int = int(inventory_ui.call("get_count", ITEM_GROUND_BLOCK))
+	if ground_block_count <= 0:
+		_set_ground_block_grid_visible(false)
+		return
+
+	var ground: Node = _get_diggable_ground()
+	if ground == null:
+		return
+	if not ground.has_method("place_ground_block_at_world"):
+		return
+
+	var cursor_position: Vector2 = get_aim_global_position()
+	if not _is_cursor_within_ground_block_grid_range(cursor_position):
+		return
+	if _would_ground_block_overlap_player(cursor_position, ground):
+		return
+	var placed_variant: Variant = ground.call("place_ground_block_at_world", cursor_position)
+	if not (placed_variant is bool):
+		return
+	if not (placed_variant as bool):
+		return
+
+	inventory_ui.call("consume_one", ITEM_GROUND_BLOCK)
+	if int(inventory_ui.call("get_count", ITEM_GROUND_BLOCK)) <= 0:
+		_set_ground_block_grid_visible(false)
+
+
+func _would_ground_block_overlap_player(target_world_position: Vector2, ground: Node) -> bool:
+	if not (ground is Node2D):
+		return false
+	var ground_node: Node2D = ground as Node2D
+	var block_size_variant: Variant = ground.get("block_size")
+	var block_size_px: float = 10.0
+	if block_size_variant is int:
+		block_size_px = float(block_size_variant as int)
+	elif block_size_variant is float:
+		block_size_px = block_size_variant as float
+	block_size_px = maxf(block_size_px, 1.0)
+
+	var local_target: Vector2 = ground_node.to_local(target_world_position)
+	var cell_x: int = int(floor(local_target.x / block_size_px))
+	var cell_y: int = int(floor(local_target.y / block_size_px))
+	var cell_center_local := Vector2((float(cell_x) + 0.5) * block_size_px, (float(cell_y) + 0.5) * block_size_px)
+	var cell_center_world: Vector2 = ground_node.to_global(cell_center_local)
+
+	var test_shape := RectangleShape2D.new()
+	test_shape.size = Vector2(block_size_px, block_size_px)
+	var query := PhysicsShapeQueryParameters2D.new()
+	query.shape = test_shape
+	query.transform = Transform2D(0.0, cell_center_world)
+	query.collision_mask = PLAYER_LAYER_BIT
+	query.collide_with_bodies = true
+	query.collide_with_areas = false
+
+	var space_state: PhysicsDirectSpaceState2D = get_world_2d().direct_space_state
+	var hits: Array[Dictionary] = space_state.intersect_shape(query, 8)
+	for hit: Dictionary in hits:
+		var collider_variant: Variant = hit.get("collider", null)
+		if collider_variant == self:
+			return true
+	return false
 
 
 func _update_crosshair_visibility() -> void:
@@ -537,7 +692,7 @@ func _try_dig_ground_at_cursor_if_allowed() -> void:
 		return
 
 	var cursor_position: Vector2 = get_aim_global_position()
-	if not _is_cursor_within_orange_dig_box(cursor_position):
+	if not _is_cursor_within_ground_block_grid_range(cursor_position):
 		return
 	_spawn_dig_preview(cursor_position)
 	ground.call("dig_at", cursor_position, dig_radius)
@@ -563,6 +718,15 @@ func _is_cursor_within_orange_dig_box(cursor_global_position: Vector2) -> bool:
 		center = global_position
 	var delta: Vector2 = cursor_global_position - (center as Vector2)
 	return absf(delta.x) <= ORANGE_DIG_BOX_HALF_SIZE and absf(delta.y) <= ORANGE_DIG_BOX_HALF_SIZE
+
+
+func _is_cursor_within_ground_block_grid_range(cursor_global_position: Vector2) -> bool:
+	var grid_center: Vector2 = global_position + GROUND_BLOCK_GRID_CENTER_OFFSET
+	if absf(cursor_global_position.x - grid_center.x) > GROUND_BLOCK_GRID_HALF_RANGE_SIZE.x:
+		return false
+	if absf(cursor_global_position.y - grid_center.y) > GROUND_BLOCK_GRID_HALF_RANGE_SIZE.y:
+		return false
+	return true
 
 
 func _spawn_dig_preview(target_global_position: Vector2) -> void:
@@ -1048,6 +1212,7 @@ func _setup_inventory_ui() -> void:
 
 	_connect_inventory_ui_signals()
 	_grant_initial_pickaxe_if_needed()
+	_grant_initial_ground_blocks_if_needed()
 
 
 func _connect_inventory_ui_signals() -> void:
@@ -1074,6 +1239,16 @@ func _grant_initial_pickaxe_if_needed() -> void:
 	if inventory_ui.has_method("add_item"):
 		inventory_ui.call("add_item", "pickaxe", 1)
 		_initial_pickaxe_granted = true
+
+
+func _grant_initial_ground_blocks_if_needed() -> void:
+	if _initial_ground_blocks_granted:
+		return
+	if inventory_ui == null or not is_instance_valid(inventory_ui):
+		return
+	if inventory_ui.has_method("add_item"):
+		inventory_ui.call("add_item", ITEM_GROUND_BLOCK, INITIAL_GROUND_BLOCK_COUNT)
+		_initial_ground_blocks_granted = true
 
 
 func _on_inventory_magazine_reload_requested() -> void:
@@ -1399,6 +1574,17 @@ func _apply_pending_vehicle_climb_if_needed() -> void:
 
 
 func _on_inventory_item_use_requested(item_id: String) -> void:
+	if item_id == ITEM_GROUND_BLOCK:
+		if _is_ground_block_grid_active():
+			_set_ground_block_grid_visible(false)
+			return
+		var used_for_fuel: bool = _try_use_ground_block_as_vehicle_fuel()
+		if used_for_fuel:
+			_set_ground_block_grid_visible(false)
+			return
+		_configure_ground_block_grid_overlay()
+		_set_ground_block_grid_visible(true)
+		return
 	if item_id == "apple":
 		# InventoryUI is responsible for consuming the item. We only apply the effect.
 		if OS.is_debug_build():
@@ -1415,6 +1601,26 @@ func _on_inventory_item_use_requested(item_id: String) -> void:
 		if axe_equipped:
 			pickaxe_equipped = false
 		return
+
+
+func _try_use_ground_block_as_vehicle_fuel() -> bool:
+	if inventory_ui == null or not is_instance_valid(inventory_ui):
+		return false
+	if not inventory_ui.has_method("consume_one"):
+		return false
+	for vehicle_node: Node in get_tree().get_nodes_in_group(VEHICLE_PAINTING_19_GROUP_NAME):
+		if vehicle_node == null:
+			continue
+		if not vehicle_node.has_method("try_refuel_with_ground_block"):
+			continue
+		var result_variant: Variant = vehicle_node.call("try_refuel_with_ground_block")
+		if not (result_variant is bool):
+			continue
+		if not (result_variant as bool):
+			continue
+		inventory_ui.call("consume_one", ITEM_GROUND_BLOCK)
+		return true
+	return false
 
 
 func _create_axe_texture() -> Texture2D:

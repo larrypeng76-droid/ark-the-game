@@ -9,7 +9,7 @@ position = Vector2(-17, -173)
 scale = Vector2(1.5, 1.5)
 
 [node name="Player" parent="." instance=ExtResource("2_cpr0p")]
-position = Vector2(65.333336, 576.6667)
+position = Vector2(60.666668, 544.6667)
 
 [node name="Level" parent="." instance=ExtResource("2_gl6un")]
 position = Vector2(-57.333332, 320.00003)

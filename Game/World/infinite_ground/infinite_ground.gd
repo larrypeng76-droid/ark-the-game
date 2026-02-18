@@ -22,6 +22,11 @@ const PAINTING_SPROUT_RANDOM_TEXTURE_PATHS: Array[String] = [
 @export_range(8, 1024, 1) var half_width_blocks: int = 64
 @export_range(0, 4096, 1) var trim_padding_blocks: int = 96
 
+@export_group("Placement Fall")
+@export_range(50.0, 6000.0, 10.0) var placed_block_fall_gravity: float = 1800.0
+@export_range(50.0, 6000.0, 10.0) var placed_block_fall_max_speed: float = 2200.0
+@export_range(0.0, 6.0, 0.1) var placed_block_contact_tolerance_px: float = 1.0
+
 @export_group("Visual")
 @export var ground_tile_region: Rect2i = Rect2i(16, 16, 16, 16)
 @export var block_tint: Color = Color(1.0, 1.0, 1.0, 1.0)
@@ -103,6 +108,7 @@ const PAINTING_SPROUT_RANDOM_TEXTURE_PATHS: Array[String] = [
 const PLAYER_GROUP_NAME := "player"
 const DIGGABLE_GROUND_GROUP := "diggable_ground"
 const TERRAIN_LAYER_BIT: int = 1 << 2
+const ANY_COLLISION_MASK: int = -1
 
 var generated_min_x: int = 0
 var generated_max_x: int = -1
@@ -121,6 +127,8 @@ var _active_trees: Dictionary = {}
 var _active_grass_sprouts: Dictionary = {}
 var _active_painting_sprouts: Dictionary = {}
 var _tree_protected_cells: Dictionary = {}
+var _falling_blocks: Array[Dictionary] = []
+var _falling_target_cells: Dictionary = {}
 var _custom_grass_texture: Texture2D
 var _floor_cycle_textures: Array[Texture2D] = []
 var _floor_top_line_texture: Texture2D
@@ -156,6 +164,7 @@ func _ready() -> void:
 
 func _process(delta: float) -> void:
 	_update_painting_sprout_sway(delta)
+	_update_falling_blocks(delta)
 	if player == null:
 		_try_find_player()
 		if player == null:
@@ -233,6 +242,42 @@ func chop_trees_at(target_global_position: Vector2, radius: float) -> int:
 	return 1
 
 
+func place_ground_block_at_world(target_global_position: Vector2) -> bool:
+	var local_position: Vector2 = to_local(target_global_position)
+	var cell: Vector2i = _world_to_block(local_position)
+	if _active_blocks.has(cell):
+		return false
+	if _falling_target_cells.has(cell):
+		return false
+	if _is_tree_protected_cell(cell):
+		return false
+
+	var base_max_y: int = ground_top_block_y + ground_depth_blocks - 1
+	var desired_max_y: int = maxi(base_max_y, cell.y + vertical_ahead_blocks)
+	_ensure_generated_range(cell.x, cell.x, desired_max_y)
+
+	var settled_cell: Vector2i = cell
+	while settled_cell.y < generated_max_y:
+		if _is_cell_supported_for_placed_block(settled_cell):
+			break
+		settled_cell += Vector2i(0, 1)
+
+	if _is_tree_protected_cell(settled_cell):
+		return false
+	if _active_blocks.has(settled_cell):
+		return false
+	if _falling_target_cells.has(settled_cell):
+		return false
+
+	if settled_cell == cell:
+		_dug_blocks.erase(settled_cell)
+		_create_ground_block(settled_cell)
+		return true
+
+	_spawn_falling_ground_block(cell, settled_cell)
+	return true
+
+
 func _get_grass_cap_y() -> int:
 	return ground_top_block_y - 1
 
@@ -304,6 +349,8 @@ func _generate_rect(min_x: int, max_x: int, min_y: int, max_y: int) -> void:
 			if _dug_blocks.has(cell):
 				continue
 			if _active_blocks.has(cell):
+				continue
+			if _falling_target_cells.has(cell):
 				continue
 			_create_ground_block(cell)
 
@@ -992,6 +1039,165 @@ func _create_block_sprite(region: Rect2i) -> Sprite2D:
 	var tile_height: float = maxf(float(region.size.y), 1.0)
 	visual.scale = Vector2(float(block_size) / tile_width, float(block_size) / tile_height)
 	return visual
+
+
+func _is_cell_supported_for_placed_block(cell: Vector2i) -> bool:
+	var below_cell: Vector2i = cell + Vector2i(0, 1)
+	if _active_blocks.has(below_cell):
+		return true
+	if _falling_target_cells.has(below_cell):
+		return true
+
+	var probe_shape := RectangleShape2D.new()
+	probe_shape.size = Vector2(float(block_size) * 0.65, 1.5)
+	var query := PhysicsShapeQueryParameters2D.new()
+	query.shape = probe_shape
+	var local_center: Vector2 = _block_center_world(cell)
+	var probe_local_position: Vector2 = Vector2(local_center.x, local_center.y + float(block_size) * 0.5 + 0.75)
+	query.transform = Transform2D(0.0, to_global(probe_local_position))
+	query.collision_mask = ANY_COLLISION_MASK
+	query.collide_with_bodies = true
+	query.collide_with_areas = true
+
+	var hits: Array[Dictionary] = get_world_2d().direct_space_state.intersect_shape(query, 8)
+	return not hits.is_empty()
+
+
+func _spawn_falling_ground_block(start_cell: Vector2i, settled_cell: Vector2i) -> void:
+	var falling_node := Node2D.new()
+	falling_node.name = "FallingBlock_%d_%d" % [settled_cell.x, settled_cell.y]
+	falling_node.position = _block_center_world(start_cell)
+	falling_node.add_child(_create_block_sprite(ground_tile_region))
+	blocks_root.add_child(falling_node)
+
+	_falling_target_cells[settled_cell] = true
+	var entry: Dictionary = {
+		"node": falling_node,
+		"target_cell": settled_cell,
+		"max_fall_y": _block_center_world(settled_cell).y,
+		"velocity_y": 0.0,
+	}
+	_falling_blocks.append(entry)
+
+
+func _update_falling_blocks(delta: float) -> void:
+	if _falling_blocks.is_empty():
+		return
+
+	for i in range(_falling_blocks.size() - 1, -1, -1):
+		var entry: Dictionary = _falling_blocks[i]
+		var node_variant: Variant = entry.get("node", null)
+		if not (node_variant is Node2D):
+			_release_falling_target_from_entry(entry)
+			_falling_blocks.remove_at(i)
+			continue
+
+		var falling_node: Node2D = node_variant as Node2D
+		if falling_node == null or not is_instance_valid(falling_node):
+			_release_falling_target_from_entry(entry)
+			_falling_blocks.remove_at(i)
+			continue
+
+		var max_fall_y: float = float(entry.get("max_fall_y", falling_node.position.y))
+		var velocity_y: float = float(entry.get("velocity_y", 0.0))
+		if _is_falling_block_touching_any_collision(falling_node.position):
+			var touching_cell: Vector2i = _world_to_block(falling_node.position)
+			_finalize_falling_ground_block(entry, falling_node, touching_cell)
+			_falling_blocks.remove_at(i)
+			continue
+		velocity_y = minf(velocity_y + placed_block_fall_gravity * delta, placed_block_fall_max_speed)
+		var requested_fall_delta_y: float = minf(velocity_y * delta, max_fall_y - falling_node.position.y)
+		var safe_fraction: float = _compute_fall_safe_fraction(falling_node.position, requested_fall_delta_y)
+		var moved_delta_y: float = requested_fall_delta_y * safe_fraction
+		var next_y: float = falling_node.position.y + moved_delta_y
+		falling_node.position.y = next_y
+		if safe_fraction < 1.0:
+			var final_cell: Vector2i = _world_to_block(falling_node.position)
+			_finalize_falling_ground_block(entry, falling_node, final_cell)
+			_falling_blocks.remove_at(i)
+			continue
+		if next_y >= max_fall_y:
+			var fallback_cell_variant: Variant = entry.get("target_cell", null)
+			var fallback_cell: Vector2i = _world_to_block(falling_node.position)
+			if fallback_cell_variant is Vector2i:
+				fallback_cell = fallback_cell_variant as Vector2i
+			_finalize_falling_ground_block(entry, falling_node, fallback_cell)
+			_falling_blocks.remove_at(i)
+			continue
+
+		entry["velocity_y"] = velocity_y
+		_falling_blocks[i] = entry
+
+
+func _finalize_falling_ground_block(entry: Dictionary, falling_node: Node2D, target_cell: Vector2i) -> void:
+	_release_falling_target_from_entry(entry)
+	if not _active_blocks.has(target_cell) and not _is_tree_protected_cell(target_cell):
+		_dug_blocks.erase(target_cell)
+		_create_ground_block(target_cell)
+	falling_node.queue_free()
+
+
+func _compute_fall_safe_fraction(center_local: Vector2, delta_y: float) -> float:
+	if delta_y <= 0.0:
+		return 1.0
+	var probe_shape := RectangleShape2D.new()
+	probe_shape.size = Vector2(float(block_size) * 0.9, float(block_size) * 0.9)
+	var query := PhysicsShapeQueryParameters2D.new()
+	query.shape = probe_shape
+	query.transform = Transform2D(0.0, to_global(center_local))
+	query.motion = Vector2(0.0, delta_y)
+	query.collision_mask = ANY_COLLISION_MASK
+	query.collide_with_bodies = true
+	query.collide_with_areas = true
+
+	var cast_result: PackedFloat32Array = get_world_2d().direct_space_state.cast_motion(query)
+	if cast_result.size() == 0:
+		return 1.0
+	return clampf(cast_result[0], 0.0, 1.0)
+
+
+func _is_falling_block_touching_any_collision(center_local: Vector2) -> bool:
+	if _is_falling_block_touching_placed_block(center_local):
+		return true
+
+	var contact_shape := RectangleShape2D.new()
+	var tolerance: float = maxf(placed_block_contact_tolerance_px, 0.0)
+	var shape_size: float = float(block_size) + tolerance * 2.0
+	contact_shape.size = Vector2(shape_size, shape_size)
+	var query := PhysicsShapeQueryParameters2D.new()
+	query.shape = contact_shape
+	query.transform = Transform2D(0.0, to_global(center_local))
+	query.collision_mask = ANY_COLLISION_MASK
+	query.collide_with_bodies = true
+	query.collide_with_areas = true
+
+	var hits: Array[Dictionary] = get_world_2d().direct_space_state.intersect_shape(query, 16)
+	return not hits.is_empty()
+
+
+func _is_falling_block_touching_placed_block(center_local: Vector2) -> bool:
+	var tolerance: float = maxf(placed_block_contact_tolerance_px, 0.0)
+	var max_axis_delta: float = float(block_size) + tolerance
+	var center_cell: Vector2i = _world_to_block(center_local)
+
+	for y_offset in range(-1, 2):
+		for x_offset in range(-1, 2):
+			var neighbor_cell: Vector2i = center_cell + Vector2i(x_offset, y_offset)
+			if not _active_blocks.has(neighbor_cell):
+				continue
+
+			var neighbor_center: Vector2 = _block_center_world(neighbor_cell)
+			var delta: Vector2 = center_local - neighbor_center
+			if absf(delta.x) <= max_axis_delta and absf(delta.y) <= max_axis_delta:
+				return true
+
+	return false
+
+
+func _release_falling_target_from_entry(entry: Dictionary) -> void:
+	var target_cell_variant: Variant = entry.get("target_cell", null)
+	if target_cell_variant is Vector2i:
+		_falling_target_cells.erase(target_cell_variant as Vector2i)
 
 
 func _remove_block(cell: Vector2i, mark_as_dug: bool) -> void:

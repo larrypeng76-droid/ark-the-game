@@ -387,7 +387,7 @@ func _update_ui() -> void:
 			elif i == SLOT_AXE:
 				button.disabled = axe_count <= 0
 			elif i == SLOT_GROUND_BLOCK:
-				button.disabled = true
+				button.disabled = ground_block_count <= 0 or not _can_use_items()
 			elif i == SLOT_WOOD:
 				button.disabled = true
 			else:
@@ -405,6 +405,13 @@ func _on_slot_pressed(slot_index: int) -> void:
 	if slot_index == SLOT_AXE:
 		if get_count(ITEM_AXE) > 0:
 			item_requested_use.emit(ITEM_AXE)
+		return
+	if slot_index == SLOT_GROUND_BLOCK:
+		if not _can_use_items():
+			return
+		if get_count(ITEM_GROUND_BLOCK) <= 0:
+			return
+		item_requested_use.emit(ITEM_GROUND_BLOCK)
 		return
 
 	if slot_index != SLOT_APPLE:
