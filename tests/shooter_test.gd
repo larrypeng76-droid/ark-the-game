@@ -36,14 +36,14 @@ func _run() -> void:
 		var max_health_v = shooter.get("max_health")
 		if typeof(max_health_v) != TYPE_INT:
 			errors.append("Shooter max_health must be int")
-		elif int(max_health_v) != 5:
-			errors.append("Shooter max_health expected 5, got %s" % str(max_health_v))
+		elif int(max_health_v) != 15:
+			errors.append("Shooter max_health expected 15, got %s" % str(max_health_v))
 
 		var health_v = shooter.get("health")
 		if typeof(health_v) != TYPE_INT:
 			errors.append("Shooter health must be int")
-		elif int(health_v) != 5:
-			errors.append("Shooter health expected 5, got %s" % str(health_v))
+		elif int(health_v) != 15:
+			errors.append("Shooter health expected 15, got %s" % str(health_v))
 	
 	var frames := anim.sprite_frames
 	if frames == null:

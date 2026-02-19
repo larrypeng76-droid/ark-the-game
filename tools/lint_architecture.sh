@@ -82,6 +82,20 @@ if rg -n --glob '*.gd' -- "\\b(Player|Zombie|Shooter)\\b" "$PROJECT_ROOT/core" \
     >&2 || true
 fi
 
+# Turret P0 rule: placement authority must route through TurretManager.
+if rg -n -- "TempTurretScene\\.instantiate\\(" "$PROJECT_ROOT/game/player/player.gd" >/dev/null; then
+  warn "Player must not instantiate TempTurret directly; route via TurretManager.place_turret_at_world()."
+  rg -n -- "TempTurretScene\\.instantiate\\(" "$PROJECT_ROOT/game/player/player.gd" >&2 || true
+fi
+
+# Turret P0 rule: manager + rule entrypoints must exist.
+if ! rg -n -- "func can_place_turret_at_world\\(" "$PROJECT_ROOT/game/features/turret/turret_manager.gd" >/dev/null; then
+  warn "Missing TurretManager.can_place_turret_at_world() entrypoint."
+fi
+if ! rg -n -- "func can_place_turret\\(" "$PROJECT_ROOT/game/features/turret/turret_rules.gd" >/dev/null; then
+  warn "Missing TurretRules.can_place_turret() constraint entrypoint."
+fi
+
 if (( warnings == 0 )); then
   echo "OK: architecture lint (no warnings)"
   exit 0

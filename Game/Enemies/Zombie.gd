@@ -3,8 +3,8 @@
 extends CharacterBody2D
 
 @onready var animation_player: AnimationPlayer = $AnimationPlayer
-@export var max_health: int = 5
-var health: int = 5
+@export var max_health: int = 15
+var health: int = 15
 
 func _ready():
 	add_to_group("enemy")

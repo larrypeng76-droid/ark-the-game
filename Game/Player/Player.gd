@@ -9,6 +9,7 @@ const DigPreviewEffectScript := preload("res://game/player/dig_preview_effect.gd
 const SurfaceDarknessOverlayShader := preload("res://game/player/surface_darkness_overlay.gdshader")
 const GroundBlockGridOverlayScript := preload("res://game/player/ground_block_grid_overlay.gd")
 const AxePickupScene := preload("res://game/features/items/axe/axe.tscn")
+const TurretManagerScript := preload("res://game/features/turret/turret_manager.gd")
 
 @export_group("World")
 @export var world_gravity: float = 1800
@@ -51,6 +52,7 @@ const AxePickupScene := preload("res://game/features/items/axe/axe.tscn")
 @export_group("Ground Block Grid")
 @export var ground_block_grid_color: Color = Color(1.0, 1.0, 1.0, 0.4)
 @export_range(0.1, 4.0, 0.01) var ground_block_grid_line_width: float = 1.0 / 3.0
+@export_enum("cursor", "grid") var turret_placement_mode: String = "cursor"
 
 const ORANGE_DIG_BOX_SIZE: float = 50.0
 const ORANGE_DIG_BOX_HALF_SIZE: float = ORANGE_DIG_BOX_SIZE * 0.5
@@ -132,6 +134,7 @@ var combat_logic: RefCounted
 var inventory_ui: CanvasLayer
 var _initial_pickaxe_granted: bool = false
 var _initial_ground_blocks_granted: bool = false
+var _initial_temp_turrets_granted: bool = false
 var _initial_axe_spawned: bool = false
 
 const INVENTORY_UI_GROUP_NAME := "inventory_ui"
@@ -139,8 +142,12 @@ const INVENTORY_UI_SETUP_MAX_RETRIES: int = 10
 const DIGGABLE_GROUND_GROUP_NAME := "diggable_ground"
 const VEHICLE_PAINTING_19_GROUP_NAME := "vehicle_painting_19"
 const ITEM_GROUND_BLOCK := "ground_block"
+const ITEM_TEMP_TURRET := "temp_turret"
 const PLAYER_LAYER_BIT: int = 1 << 0
+const TERRAIN_LAYER_BIT: int = 1 << 2
 const INITIAL_GROUND_BLOCK_COUNT: int = 1000
+const INITIAL_TEMP_TURRET_COUNT: int = 20
+const TEMP_TURRET_COLLISION_SIZE_PX: Vector2 = Vector2(60.0, 40.0)
 
 enum collision_shapes { STANDING, CROUCHED }
 
@@ -156,6 +163,8 @@ var _equipped_pickaxe_sprite: Sprite2D
 var _surface_darkness_overlay: ColorRect
 var _surface_darkness_material: ShaderMaterial
 var _ground_block_grid_overlay: Node2D
+var _active_grid_item_id: String = ""
+var _turret_manager: Node
 
 const ENEMY_LAYER_MASK: int = 1 << 1
 
@@ -184,6 +193,7 @@ func _ready():
 	state_machine.call("change_state", "IdleState")
 	update_health_ui()
 	call_deferred("_setup_inventory_ui")
+	call_deferred("_setup_turret_manager")
 	call_deferred("_setup_item_pickups")
 	call_deferred("_setup_vehicle_climbables")
 	_emit_ammo_state_changed()
@@ -263,7 +273,7 @@ func _input(event: InputEvent) -> void:
 		if event is InputEventMouseButton:
 			var grid_mouse_button: InputEventMouseButton = event
 			if grid_mouse_button.button_index == MOUSE_BUTTON_LEFT and grid_mouse_button.pressed:
-				_try_place_ground_block_at_cursor_if_allowed()
+				_try_place_grid_item_at_cursor_if_allowed()
 				return
 
 	if pickaxe_equipped:
@@ -463,10 +473,22 @@ func _set_ground_block_grid_visible(active: bool) -> void:
 		return
 	if _ground_block_grid_overlay.has_method("set_grid_visible"):
 		_ground_block_grid_overlay.call("set_grid_visible", active)
+	if not active:
+		_active_grid_item_id = ""
 
 
 func _is_ground_block_grid_active() -> bool:
 	return _ground_block_grid_overlay != null and is_instance_valid(_ground_block_grid_overlay) and _ground_block_grid_overlay.visible
+
+
+func _try_place_grid_item_at_cursor_if_allowed() -> void:
+	if _active_grid_item_id == ITEM_GROUND_BLOCK:
+		_try_place_ground_block_at_cursor_if_allowed()
+		return
+	if _active_grid_item_id == ITEM_TEMP_TURRET:
+		_try_place_temp_turret_at_cursor_if_allowed()
+		return
+	_set_ground_block_grid_visible(false)
 
 
 func _try_place_ground_block_at_cursor_if_allowed() -> void:
@@ -511,13 +533,7 @@ func _would_ground_block_overlap_player(target_world_position: Vector2, ground: 
 	if not (ground is Node2D):
 		return false
 	var ground_node: Node2D = ground as Node2D
-	var block_size_variant: Variant = ground.get("block_size")
-	var block_size_px: float = 10.0
-	if block_size_variant is int:
-		block_size_px = float(block_size_variant as int)
-	elif block_size_variant is float:
-		block_size_px = block_size_variant as float
-	block_size_px = maxf(block_size_px, 1.0)
+	var block_size_px: float = _get_ground_block_size_px(ground)
 
 	var local_target: Vector2 = ground_node.to_local(target_world_position)
 	var cell_x: int = int(floor(local_target.x / block_size_px))
@@ -540,6 +556,145 @@ func _would_ground_block_overlap_player(target_world_position: Vector2, ground: 
 		var collider_variant: Variant = hit.get("collider", null)
 		if collider_variant == self:
 			return true
+	return false
+
+
+func _try_place_temp_turret_at_cursor_if_allowed() -> void:
+	if inventory_ui == null or not is_instance_valid(inventory_ui):
+		_set_ground_block_grid_visible(false)
+		return
+	if not inventory_ui.has_method("get_count"):
+		_set_ground_block_grid_visible(false)
+		return
+	if not inventory_ui.has_method("consume_one"):
+		_set_ground_block_grid_visible(false)
+		return
+
+	var turret_count: int = int(inventory_ui.call("get_count", ITEM_TEMP_TURRET))
+	if turret_count <= 0:
+		_set_ground_block_grid_visible(false)
+		return
+
+	var ground: Node = _get_diggable_ground()
+	if not (ground is Node2D):
+		return
+	var ground_node: Node2D = ground as Node2D
+
+	var cursor_position: Vector2 = get_aim_global_position()
+	if not _is_cursor_within_ground_block_grid_range(cursor_position):
+		return
+
+	if _turret_manager == null or not is_instance_valid(_turret_manager):
+		_setup_turret_manager()
+	if _turret_manager == null or not is_instance_valid(_turret_manager):
+		return
+	if not _turret_manager.has_method("configure_context"):
+		return
+	if not _turret_manager.has_method("place_turret_at_world"):
+		return
+
+	_turret_manager.call(
+		"configure_context",
+		ground_node,
+		_get_ground_block_grid_world_rect(),
+		Callable(self, "_does_turret_overlap_player"),
+		Callable(self, "_does_turret_overlap_vehicle"),
+		turret_placement_mode
+	)
+	var place_result_variant: Variant = _turret_manager.call("place_turret_at_world", cursor_position)
+	if not (place_result_variant is Dictionary):
+		if OS.is_debug_build():
+			push_warning("Turret place failed: invalid return type")
+		return
+	var place_result: Dictionary = place_result_variant as Dictionary
+	if not bool(place_result.get("ok", false)):
+		if OS.is_debug_build():
+			var reason_variant: Variant = place_result.get("reason", "unknown")
+			push_warning("Turret place blocked: %s" % str(reason_variant))
+		return
+
+	inventory_ui.call("consume_one", ITEM_TEMP_TURRET)
+	if int(inventory_ui.call("get_count", ITEM_TEMP_TURRET)) <= 0:
+		_set_ground_block_grid_visible(false)
+
+
+func _get_ground_block_size_px(ground: Node) -> float:
+	var block_size_variant: Variant = ground.get("block_size")
+	var block_size_px: float = 10.0
+	if block_size_variant is int:
+		block_size_px = float(block_size_variant as int)
+	elif block_size_variant is float:
+		block_size_px = block_size_variant as float
+	return maxf(block_size_px, 1.0)
+
+
+func _get_ground_block_cell_center_world(target_world_position: Vector2, ground: Node) -> Vector2:
+	if not (ground is Node2D):
+		return target_world_position
+	var ground_node: Node2D = ground as Node2D
+	var block_size_px: float = _get_ground_block_size_px(ground)
+	var local_target: Vector2 = ground_node.to_local(target_world_position)
+	var cell_x: int = int(floor(local_target.x / block_size_px))
+	var cell_y: int = int(floor(local_target.y / block_size_px))
+	var cell_center_local := Vector2((float(cell_x) + 0.5) * block_size_px, (float(cell_y) + 0.5) * block_size_px)
+	return ground_node.to_global(cell_center_local)
+
+
+func _setup_turret_manager() -> void:
+	if _turret_manager != null and is_instance_valid(_turret_manager):
+		return
+	var existing_manager: Node = get_tree().get_first_node_in_group("turret_manager")
+	if existing_manager != null:
+		_turret_manager = existing_manager
+		return
+	if TurretManagerScript == null:
+		return
+	var scene_root: Node = get_tree().current_scene
+	if scene_root == null:
+		scene_root = get_tree().root
+	if scene_root == null:
+		return
+	var manager_node := Node.new()
+	manager_node.name = "TurretManager"
+	manager_node.set_script(TurretManagerScript)
+	scene_root.add_child(manager_node)
+	_turret_manager = manager_node
+
+
+func _get_ground_block_grid_world_rect() -> Rect2:
+	var grid_center: Vector2 = global_position + GROUND_BLOCK_GRID_CENTER_OFFSET
+	return Rect2(grid_center - GROUND_BLOCK_GRID_HALF_RANGE_SIZE, GROUND_BLOCK_GRID_RANGE_SIZE)
+
+
+func _does_turret_overlap_player(target_world_position: Vector2) -> bool:
+	var ground: Node = _get_diggable_ground()
+	if ground == null:
+		return false
+	return _would_ground_block_overlap_player(target_world_position, ground)
+
+
+func _does_turret_overlap_vehicle(target_world_position: Vector2) -> bool:
+	var test_shape := RectangleShape2D.new()
+	test_shape.size = TEMP_TURRET_COLLISION_SIZE_PX
+	var query := PhysicsShapeQueryParameters2D.new()
+	query.shape = test_shape
+	query.transform = Transform2D(0.0, target_world_position)
+	query.collision_mask = TERRAIN_LAYER_BIT
+	query.collide_with_bodies = true
+	query.collide_with_areas = false
+
+	var space_state: PhysicsDirectSpaceState2D = get_world_2d().direct_space_state
+	var hits: Array[Dictionary] = space_state.intersect_shape(query, 16)
+	for hit: Dictionary in hits:
+		var collider_variant: Variant = hit.get("collider", null)
+		if not (collider_variant is Node):
+			continue
+		var collider_node: Node = collider_variant as Node
+		var current: Node = collider_node
+		while current != null:
+			if current.is_in_group(VEHICLE_PAINTING_19_GROUP_NAME):
+				return true
+			current = current.get_parent()
 	return false
 
 
@@ -1213,6 +1368,7 @@ func _setup_inventory_ui() -> void:
 	_connect_inventory_ui_signals()
 	_grant_initial_pickaxe_if_needed()
 	_grant_initial_ground_blocks_if_needed()
+	_grant_initial_temp_turrets_if_needed()
 
 
 func _connect_inventory_ui_signals() -> void:
@@ -1249,6 +1405,16 @@ func _grant_initial_ground_blocks_if_needed() -> void:
 	if inventory_ui.has_method("add_item"):
 		inventory_ui.call("add_item", ITEM_GROUND_BLOCK, INITIAL_GROUND_BLOCK_COUNT)
 		_initial_ground_blocks_granted = true
+
+
+func _grant_initial_temp_turrets_if_needed() -> void:
+	if _initial_temp_turrets_granted:
+		return
+	if inventory_ui == null or not is_instance_valid(inventory_ui):
+		return
+	if inventory_ui.has_method("add_item"):
+		inventory_ui.call("add_item", ITEM_TEMP_TURRET, INITIAL_TEMP_TURRET_COUNT)
+		_initial_temp_turrets_granted = true
 
 
 func _on_inventory_magazine_reload_requested() -> void:
@@ -1575,13 +1741,22 @@ func _apply_pending_vehicle_climb_if_needed() -> void:
 
 func _on_inventory_item_use_requested(item_id: String) -> void:
 	if item_id == ITEM_GROUND_BLOCK:
-		if _is_ground_block_grid_active():
+		if _is_ground_block_grid_active() and _active_grid_item_id == ITEM_GROUND_BLOCK:
 			_set_ground_block_grid_visible(false)
 			return
 		var used_for_fuel: bool = _try_use_ground_block_as_vehicle_fuel()
 		if used_for_fuel:
 			_set_ground_block_grid_visible(false)
 			return
+		_active_grid_item_id = ITEM_GROUND_BLOCK
+		_configure_ground_block_grid_overlay()
+		_set_ground_block_grid_visible(true)
+		return
+	if item_id == ITEM_TEMP_TURRET:
+		if _is_ground_block_grid_active() and _active_grid_item_id == ITEM_TEMP_TURRET:
+			_set_ground_block_grid_visible(false)
+			return
+		_active_grid_item_id = ITEM_TEMP_TURRET
 		_configure_ground_block_grid_overlay()
 		_set_ground_block_grid_visible(true)
 		return

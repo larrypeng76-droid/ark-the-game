@@ -22,6 +22,10 @@
 - Lockout fail-safe: env invalid => `FallState`; timer end => re-check; exit => clear locks。
 - 生命入口: only `Player.take_damage(amount)`。
 - 伤害链路: keep `Hitbox -> Hurtbox.hit() -> owner.take_damage()`。
+- 炮塔P0规则:
+  - 权威数据 only `TurretManager`（位置/朝向/等级/状态）。
+  - `temp_turret.gd` only visual/interaction，`FORBID` 持有权威放置状态。
+  - 放置判定 only `TurretRules.can_place_turret(...)`（统一入口）。
 
 ## 3. ALGO (Delivery)
 1. `Vertical Slice First` -> 先最小可玩闭环。

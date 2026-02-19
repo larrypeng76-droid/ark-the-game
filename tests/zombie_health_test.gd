@@ -22,14 +22,14 @@ func _run() -> void:
 		var max_health_v = zombie_node.get("max_health")
 		if typeof(max_health_v) != TYPE_INT:
 			errors.append("Zombie max_health must be int")
-		elif int(max_health_v) != 5:
-			errors.append("Zombie max_health expected 5, got %s" % str(max_health_v))
+		elif int(max_health_v) != 15:
+			errors.append("Zombie max_health expected 15, got %s" % str(max_health_v))
 
 		var health_v = zombie_node.get("health")
 		if typeof(health_v) != TYPE_INT:
 			errors.append("Zombie health must be int")
-		elif int(health_v) != 5:
-			errors.append("Zombie health expected 5, got %s" % str(health_v))
+		elif int(health_v) != 15:
+			errors.append("Zombie health expected 15, got %s" % str(health_v))
 	
 	_cleanup(zombie_node)
 	_report(errors)

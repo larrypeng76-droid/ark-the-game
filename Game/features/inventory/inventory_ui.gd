@@ -7,6 +7,7 @@ const ITEM_APPLE := "apple"
 const ITEM_PICKAXE := "pickaxe"
 const ITEM_AXE := "axe"
 const ITEM_GROUND_BLOCK := "ground_block"
+const ITEM_TEMP_TURRET := "temp_turret"
 const ITEM_WOOD := "wood"
 const SLOT_COUNT := 9
 const ICON_SIZE := 10.0
@@ -16,6 +17,7 @@ const SLOT_PICKAXE := 2
 const SLOT_AXE := 3
 const SLOT_GROUND_BLOCK := 4
 const SLOT_WOOD := 5
+const SLOT_TEMP_TURRET := 6
 
 @export var columns: int = 3
 
@@ -34,6 +36,7 @@ var _pickaxe_icon: Texture2D
 var _axe_icon: Texture2D
 var _ground_block_icon: Texture2D
 var _wood_icon: Texture2D
+var _temp_turret_icon: Texture2D
 
 var _ammo_in_mag: int = 0
 var _spare_mags: int = 0
@@ -52,6 +55,7 @@ func _ready() -> void:
 	_axe_icon = _create_axe_icon_texture()
 	_ground_block_icon = _create_ground_block_icon_texture()
 	_wood_icon = _create_wood_icon_texture()
+	_temp_turret_icon = _create_temp_turret_icon_texture()
 	# Must be usable both during gameplay and while paused.
 	process_mode = Node.PROCESS_MODE_ALWAYS
 	call_deferred("_connect_player_signals")
@@ -141,6 +145,14 @@ func _create_wood_icon_texture() -> Texture2D:
 		img.set_pixel(x, 11, Color(0.42, 0.27, 0.15, 1.0))
 
 	return ImageTexture.create_from_image(img)
+
+
+func _create_temp_turret_icon_texture() -> Texture2D:
+	var source_image: Image = Image.load_from_file("res://Resources/lib/临时炮塔.png")
+	if source_image == null or source_image.is_empty():
+		return null
+	source_image.resize(16, 16, Image.INTERPOLATE_LANCZOS)
+	return ImageTexture.create_from_image(source_image)
 
 
 func _connect_player_signals() -> void:
@@ -333,6 +345,7 @@ func _update_ui() -> void:
 	var axe_count: int = get_count(ITEM_AXE)
 	var ground_block_count: int = get_count(ITEM_GROUND_BLOCK)
 	var wood_count: int = get_count(ITEM_WOOD)
+	var temp_turret_count: int = get_count(ITEM_TEMP_TURRET)
 	for i in range(_slot_buttons.size()):
 		var icon := _slot_icons[i]
 		var label := _slot_counts[i]
@@ -351,6 +364,8 @@ func _update_ui() -> void:
 				icon.texture = _ground_block_icon
 			elif i == SLOT_WOOD and wood_count > 0:
 				icon.texture = _wood_icon
+			elif i == SLOT_TEMP_TURRET and temp_turret_count > 0:
+				icon.texture = _temp_turret_icon
 			else:
 				icon.texture = null
 		if label:
@@ -369,6 +384,8 @@ func _update_ui() -> void:
 				label.text = str(ground_block_count)
 			elif i == SLOT_WOOD and wood_count > 1:
 				label.text = str(wood_count)
+			elif i == SLOT_TEMP_TURRET and temp_turret_count > 1:
+				label.text = str(temp_turret_count)
 			else:
 				label.text = ""
 		if aux_label:
@@ -390,6 +407,8 @@ func _update_ui() -> void:
 				button.disabled = ground_block_count <= 0 or not _can_use_items()
 			elif i == SLOT_WOOD:
 				button.disabled = true
+			elif i == SLOT_TEMP_TURRET:
+				button.disabled = temp_turret_count <= 0 or not _can_use_items()
 			else:
 				button.disabled = true
 
@@ -412,6 +431,13 @@ func _on_slot_pressed(slot_index: int) -> void:
 		if get_count(ITEM_GROUND_BLOCK) <= 0:
 			return
 		item_requested_use.emit(ITEM_GROUND_BLOCK)
+		return
+	if slot_index == SLOT_TEMP_TURRET:
+		if not _can_use_items():
+			return
+		if get_count(ITEM_TEMP_TURRET) <= 0:
+			return
+		item_requested_use.emit(ITEM_TEMP_TURRET)
 		return
 
 	if slot_index != SLOT_APPLE:

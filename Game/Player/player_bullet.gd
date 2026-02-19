@@ -77,8 +77,33 @@ func _on_area_entered(area: Area2D) -> void:
 	queue_free()
 
 func _on_body_entered(body: Node) -> void:
+	if _is_turret_body(body):
+		return
+	if _is_vehicle_body(body):
+		return
 	if body.is_in_group("enemy"):
 		var hurtbox: Area2D = body.get_node_or_null("HurtBox")
 		if hurtbox and hurtbox.has_method("hit"):
 			hurtbox.hit(damage, self)
 	queue_free()
+
+
+func _is_turret_body(body: Node) -> bool:
+	if body == null:
+		return false
+	return _node_or_ancestor_in_group(body, "placed_temp_turret")
+
+
+func _is_vehicle_body(body: Node) -> bool:
+	if body == null:
+		return false
+	return _node_or_ancestor_in_group(body, "vehicle_painting_19")
+
+
+func _node_or_ancestor_in_group(node: Node, group_name: String) -> bool:
+	var current: Node = node
+	while current != null:
+		if current.is_in_group(group_name):
+			return true
+		current = current.get_parent()
+	return false

@@ -1,0 +1,13 @@
+[gd_scene load_steps=2 format=3]
+
+[ext_resource type="Script" path="res://game/features/items/temp_turret/temp_turret.gd" id="1_temp_turret_script"]
+
+[node name="TempTurret" type="Node2D"]
+script = ExtResource("1_temp_turret_script")
+
+[node name="Sprite2D" type="Sprite2D" parent="."]
+z_index = 8
+
+[node name="Body" type="StaticBody2D" parent="."]
+collision_layer = 4
+collision_mask = 0

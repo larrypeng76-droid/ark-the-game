@@ -102,7 +102,7 @@ extends CharacterBody2D
 @export var knockback_distance: float = 60.0
 @export var screen_shake_amount: float = 8.0
 @export var screen_shake_duration: float = 0.5
-@export var max_health: int = 5
+@export var max_health: int = 15
 
 @onready var contact_damage_area: Area2D = $ContactDamage
 @onready var visual: Node2D = $Visual
@@ -115,7 +115,7 @@ var base_visual_scale: Vector2 = Vector2.ONE
 var facing_direction: float = 1.0
 var is_attacking: bool = false
 var attack_cooldown_timer: float = 0.0
-var health: int = 5
+var health: int = 15
 
 func _ready() -> void:
 	add_to_group("enemy")

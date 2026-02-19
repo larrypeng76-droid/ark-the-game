@@ -1,8 +1,8 @@
 extends Node2D
 
-@export var enemy_scene: PackedScene = preload("res://game/enemies/zombie.tscn")
+@export var enemy_scene: PackedScene = preload("res://game/enemies/shooter.tscn")
 @export var spawn_interval_seconds: float = 5.0
-@export var spawn_position: Vector2 = Vector2(250.0, 250.0)
+@export var spawn_position: Vector2 = Vector2(400.0, 250.0)
 
 @onready var spawn_timer: Timer = $SpawnTimer
 

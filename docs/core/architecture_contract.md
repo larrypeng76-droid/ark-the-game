@@ -143,3 +143,9 @@ P-->O
 4. 是否出现无 fail-safe 的状态迁移？
 5. 是否违反路径/命名/UID/类型约束？
 6. `./tools/lint.sh` 是否通过？
+
+## 13. Turret P0 Rule
+- 权威数据（`position/rotation/level/state`）必须由 `game/features/turret/turret_manager.gd` 持有。
+- 炮塔可视节点 `game/features/items/temp_turret/temp_turret.gd` 仅负责表现与交互，不得承担权威放置规则。
+- 放置判定统一入口：`game/features/turret/turret_rules.gd` 的 `can_place_turret(...)`。
+- Player 不得直接 `instantiate` 炮塔场景；必须通过 `TurretManager.place_turret_at_world(...)`。
